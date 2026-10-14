@@ -16,7 +16,7 @@ export async function login(): Promise<void> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   const params = new URLSearchParams({
     response_type: 'code', client_id: PUBLIC_COGNITO_CLIENT_ID,
-    redirect_uri: callback(), scope: 'openid scale-mobili/reports:write',
+    redirect_uri: callback(), scope: 'openid scale-mobili/reports:write scale-mobili/stats:read',
     code_challenge: encode(new Uint8Array(digest)), code_challenge_method: 'S256',
     state, resource: `${apiBase}/mcp`
   });

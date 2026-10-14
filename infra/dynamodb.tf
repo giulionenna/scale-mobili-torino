@@ -33,9 +33,15 @@ resource "aws_dynamodb_table" "prototype" {
   dynamic "global_secondary_index" {
     for_each = each.value.indexes
     content {
-      name            = global_secondary_index.key
-      hash_key        = global_secondary_index.value.pk
-      range_key       = global_secondary_index.value.sk
+      name = global_secondary_index.key
+      key_schema {
+        attribute_name = global_secondary_index.value.pk
+        key_type       = "HASH"
+      }
+      key_schema {
+        attribute_name = global_secondary_index.value.sk
+        key_type       = "RANGE"
+      }
       projection_type = "KEYS_ONLY"
       read_capacity   = 1
       write_capacity  = 1

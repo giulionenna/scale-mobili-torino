@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scale-mobili-torino"
-version = "0.1.0"
+version = "0.2.0"
 description = "API e MCP della prova civica Scale Mobili Torino"
 requires-python = ">=3.12"
 dependencies = [
@@ -15,10 +15,15 @@ dependencies = [
   "pydantic-settings>=2.6,<3",
   "pyjwt[crypto]>=2.9,<3",
   "uvicorn>=0.32,<1",
+  "httpx>=0.28,<1",
+  "pillow>=11,<13",
 ]
 
+[project.scripts]
+smt = "scale_mobili.cli:main"
+
 [dependency-groups]
-dev = ["httpx>=0.28,<1", "pytest>=8,<10", "ruff>=0.9,<1", "moto[dynamodb,s3]>=5,<6", "playwright>=1.50,<2"]
+dev = ["httpx>=0.28,<1", "pytest>=8,<10", "ruff>=0.9,<1", "moto[dynamodb,s3,server]>=5,<6", "playwright>=1.50,<2"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/scale_mobili"]

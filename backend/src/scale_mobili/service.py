@@ -146,15 +146,6 @@ class Service:
             raise DomainError("Scope reports:write richiesto", 403)
         if not request_key or not 8 <= len(request_key) <= 128:
             raise DomainError("Idempotency-Key richiede da 8 a 128 caratteri")
-        meta = self.require_escalator(escalator_id)
-        target = self._target(escalator_id, target_reference) if target_reference else None
-        if (
-            kind == "correction"
-            and target
-            and target["actor_id"] != actor.id
-            and not actor.moderator
-        ):
-            raise DomainError("Puoi rettificare solo le tue segnalazioni", 403)
         body = payload.model_dump(mode="json") if payload else {}
         digest = hashlib.sha256(
             json.dumps(
@@ -164,6 +155,23 @@ class Service:
             ).encode()
         ).hexdigest()
         now = int(time.time())
+        previous = self.store.get_idempotency(actor.id, request_key)
+        if previous and previous["expires_at"] > now:
+            if previous["digest"] != digest:
+                raise DomainError("Chiave di idempotenza già usata con contenuto diverso", 409)
+            return previous["result"]
+        meta = self.require_escalator(escalator_id)
+        if kind == "report" and payload.station_id and payload.station_id != meta["station_id"]:
+            raise DomainError("L'impianto non appartiene alla stazione indicata")
+        target = self._target(escalator_id, target_reference) if target_reference else None
+        if (
+            kind == "correction"
+            and target
+            and target["actor_id"] != actor.id
+            and not actor.moderator
+        ):
+            raise DomainError("Puoi rettificare solo le tue segnalazioni", 403)
+        escalator_id = meta["escalator_id"]
         event = {
             "event_id": str(uuid4()),
             "escalator_id": escalator_id,
@@ -174,13 +182,19 @@ class Service:
             if kind == "report"
             else target["observed_at"],
             "synthetic": meta.get("synthetic", False),
+            "station_id": meta["station_id"],
+            "device_id": escalator_id,
         }
         if kind != "confirmation":
             event["status"] = body["status"]
+        if kind == "report":
+            event["description"] = body.get("description", "")
+            if body.get("photo_id"):
+                event["photo_id"] = body["photo_id"]
         if target:
             event["target_event_id"] = target["event_id"]
             event["target_pk"], event["target_sk"] = (
-                f"ESC#{escalator_id}",
+                f"ESC#{target['escalator_id']}",
                 f"EVENT#{target['recorded_at']}#{target['event_id']}",
             )
         if kind == "correction":
@@ -192,14 +206,13 @@ class Service:
                     raise DomainError("Chiave di idempotenza già usata con contenuto diverso", 409)
                 return previous["result"]
             state = self.store.get_state(escalator_id)
-            events, after = self.store.history(escalator_id, timestamp(), None, 100)
-            while after and len(events) < 1000:
-                page, after = self.store.history(escalator_id, timestamp(), after, 100)
-                events.extend(page)
-            if after:
-                raise DomainError("Serve un ricalcolo asincrono oltre il limite della prova", 409)
+            events = self.all_events(escalator_id)
+            if len(events) >= getattr(getattr(self, "settings", None), "max_device_events", 1000):
+                raise DomainError(
+                    "Storico al limite del prototipo: serve elaborazione asincrona", 409
+                )
             current = self._project([*events, event])
-            new_state = {"version": int(state["version"]) + 1, "community": current}
+            new_state = {**state, "version": int(state["version"]) + 1, "community": current}
             result = {
                 **public_event(event),
                 "reference": self._encode(
@@ -211,7 +224,12 @@ class Service:
                     }
                 ),
             }
-            receipt = {"digest": digest, "result": result, "expires_at": now + 86400}
+            receipt = {
+                "version": int(previous.get("version", 0)) + 1 if previous else 1,
+                "digest": digest,
+                "result": result,
+                "expires_at": now + 86400,
+            }
             try:
                 self.store.commit(
                     event, new_state, int(state["version"]), actor.id, request_key, receipt, now
@@ -220,6 +238,16 @@ class Service:
             except ConcurrentWrite:
                 continue
         raise DomainError("Scrittura concorrente: ritenta con la stessa chiave", 409)
+
+    def all_events(self, escalator_id, upper=None):
+        upper = upper or timestamp()
+        events, after = self.store.history(escalator_id, upper, None, 100)
+        while after and len(events) < 1000:
+            page, after = self.store.history(escalator_id, upper, after, 100)
+            events.extend(page)
+        if after:
+            raise DomainError("Serve un ricalcolo asincrono oltre il limite della prova", 409)
+        return events
 
     @staticmethod
     def _project(events):

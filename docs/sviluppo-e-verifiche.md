@@ -140,3 +140,12 @@ sulla latenza quando Lambda sarà disponibile; non si promettono prestazioni AWS
 Le fonti ufficiali e la stima restano assenti: l'interfaccia non riempie i vuoti
 con stati inventati. Il risultato attuale è un **prototipo dimostrativo nel cloud**,
 non una piattaforma già distribuita su AWS o un censimento reale.
+
+## Incremento backend 0.2
+
+Il primo incremento precedente è stato committato con la UI nel commit `ba02094`.
+API estese, moderazione, fotografia privata, fonti, censimento con alias,
+statistiche e stack applicativo sono descritti nel
+[runbook aggiornato](backend-deployabile.md). Le attività elencate sopra restano
+il resoconto storico del primo incremento; le verifiche reali AWS e dei client
+rimangono separate dai nuovi collaudi emulati.

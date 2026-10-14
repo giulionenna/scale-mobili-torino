@@ -1,4 +1,4 @@
-name: Piano AWS manuale (senza apply)
+name: Piano AWS manuale senza apply
 
 on:
   workflow_dispatch:
@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: aws-prototype-terraform
+  cancel-in-progress: false
+
 jobs:
   plan:
     if: github.ref == 'refs/heads/main' && inputs.budget_reviewed
@@ -20,11 +24,24 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    defaults:
-      run:
-        working-directory: infra
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_cursor_secret: ${{ secrets.SMT_CURSOR_SECRET }}
+      TF_VAR_cursor_secret_version: ${{ vars.CURSOR_SECRET_VERSION || '1' }}
+      TF_VAR_frontend_url: ${{ vars.FRONTEND_URL }}
+      TF_VAR_runtime_permissions_boundary_arn: ${{ vars.RUNTIME_PERMISSIONS_BOUNDARY_ARN }}
+      TF_VAR_prefix: ${{ vars.PROJECT_PREFIX || 'scale-mobili-prototype' }}
+      TF_VAR_budget_reviewed: 'true'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: python scripts/build_lambda.py
+      - run: python scripts/check_lambda.py
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.14.6'
@@ -33,25 +50,29 @@ jobs:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: eu-south-1
           role-session-name: scale-mobili-plan
-      - name: Inizializza stato privato
+      - name: Inizializza stato e salva piano privato
         env:
           STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
         run: |
           test -n "$STATE_BUCKET"
-          terraform init -input=false -backend-config="bucket=$STATE_BUCKET" \
+          test -n "$TF_VAR_cursor_secret"
+          test -n "$TF_VAR_frontend_url"
+          test -n "$TF_VAR_runtime_permissions_boundary_arn"
+          terraform -chdir=infra init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
             -backend-config="key=scale-mobili/prototype/terraform.tfstate" \
             -backend-config="region=eu-south-1" -backend-config="encrypt=true" \
             -backend-config="use_lockfile=true" > "$RUNNER_TEMP/terraform-init.log" 2>&1
-      - name: Piano privato, nessuna modifica
-        env:
-          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
-        run: |
-          terraform plan -input=false -var='budget_reviewed=true' \
-            -out="$RUNNER_TEMP/prototype.tfplan" > "$RUNNER_TEMP/terraform-plan.log" 2>&1
-          aws s3 cp "$RUNNER_TEMP/prototype.tfplan" \
-            "s3://$STATE_BUCKET/scale-mobili/prototype/plans/$GITHUB_SHA.tfplan" \
-            --sse AES256 --only-show-errors
-          echo "Piano privato salvato per revisione sul commit $GITHUB_SHA. Nessuna risorsa applicata." >> "$GITHUB_STEP_SUMMARY"
-      - name: Rimuovi piano e log temporanei
+          terraform -chdir=infra plan -input=false -out="$RUNNER_TEMP/prototype.tfplan" \
+            > "$RUNNER_TEMP/terraform-plan.log" 2>&1
+          python scripts/deployment_manifest.py write --commit "$GITHUB_SHA" \
+            --plan "$RUNNER_TEMP/prototype.tfplan" --bundle dist/backend-lambda.zip \
+            --manifest "$RUNNER_TEMP/manifest.json"
+          plan_prefix="s3://$STATE_BUCKET/scale-mobili/prototype/plans/$GITHUB_SHA/$GITHUB_RUN_ID"
+          aws s3 cp "$RUNNER_TEMP/prototype.tfplan" "$plan_prefix/prototype.tfplan" --sse AES256 --only-show-errors
+          aws s3 cp dist/backend-lambda.zip "$plan_prefix/backend-lambda.zip" --sse AES256 --only-show-errors
+          aws s3 cp "$RUNNER_TEMP/manifest.json" "$plan_prefix/manifest.json" --sse AES256 --only-show-errors
+          echo "Piano privato sul commit $GITHUB_SHA, run $GITHUB_RUN_ID. Nessuna risorsa applicata." >> "$GITHUB_STEP_SUMMARY"
+      - name: Rimuovi piano, manifest e log temporanei
         if: always()
-        run: rm -f "$RUNNER_TEMP/prototype.tfplan" "$RUNNER_TEMP/terraform-init.log" "$RUNNER_TEMP/terraform-plan.log"
+        run: rm -f "$RUNNER_TEMP/prototype.tfplan" "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/terraform-init.log" "$RUNNER_TEMP/terraform-plan.log"

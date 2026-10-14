@@ -13,28 +13,35 @@ from scale_mobili.auth import authenticate, challenge
 from scale_mobili.config import Settings, get_settings
 from scale_mobili.domain import CorrectionInput, DomainError, ReportInput
 from scale_mobili.middleware import BodyLimitMiddleware
-from scale_mobili.service import Service
-from scale_mobili.store import DynamoStore, MemoryStore
+from scale_mobili.platform import PlatformService
+from scale_mobili.routes import register_routes
+from scale_mobili.runtime import build_runtime
 
 
-def create_app(settings: Settings | None = None, store=None):
+def create_app(settings: Settings | None = None, store=None, blobs=None):
     settings = settings or get_settings()
     if store is None:
-        store = (
-            MemoryStore()
-            if settings.mode == "demo"
-            else DynamoStore(settings.core_table, settings.events_table, settings.region)
-        )
-    service = Service(store, settings.cursor_secret)
+        store, default_blobs = build_runtime(settings)
+        blobs = blobs or default_blobs
+    if blobs is None:
+        from scale_mobili.blobs import MemoryBlobs
+
+        blobs = MemoryBlobs()
+    service = PlatformService(store, settings, blobs)
     hostname = urlparse(settings.public_url).netloc
     mcp = FastMCP(
-        "Scale Mobili Torino — prova",
-        instructions="Dati di prova sintetici. Identifica sempre l'impianto prima di scrivere.",
+        "Scale Mobili Torino",
+        instructions=(
+            "Scale mobili e ascensori. Mantieni fonti e timestamp separati. "
+            "Identifica l'impianto prima di scrivere; i record synthetic sono fittizi."
+        ),
         stateless_http=True,
         json_response=True,
         streamable_http_path="/mcp",
         transport_security=TransportSecuritySettings(
-            allowed_hosts=[hostname, "localhost:*", "127.0.0.1:*", "testserver"],
+            allowed_hosts=[hostname]
+            if settings.mode == "aws"
+            else [hostname, "localhost:*", "127.0.0.1:*", "testserver"],
             allowed_origins=[settings.frontend_url, settings.public_url],
         ),
     )
@@ -45,13 +52,14 @@ def create_app(settings: Settings | None = None, store=None):
         async with mcp.session_manager.run():
             yield
 
-    app = FastAPI(title="Scale Mobili Torino", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Scale Mobili Torino", version="0.2.0", lifespan=lifespan)
     app.state.service, app.state.mcp, app.state.settings = service, mcp, settings
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_url],
-        allow_methods=["GET", "POST"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "Mcp-Protocol-Version"],
+        expose_headers=["WWW-Authenticate"],
     )
     app.add_middleware(BodyLimitMiddleware)
 
@@ -72,7 +80,7 @@ def create_app(settings: Settings | None = None, store=None):
         return {
             "status": "ok",
             "mode": settings.mode,
-            "synthetic_demo": settings.mode == "demo",
+            "synthetic_demo": settings.mode != "aws",
             "storage": "volatile_memory" if settings.mode == "demo" else "dynamodb",
         }
 
@@ -81,7 +89,7 @@ def create_app(settings: Settings | None = None, store=None):
         return {
             "resource": settings.public_url.rstrip("/") + "/mcp",
             "authorization_servers": [settings.cognito_issuer] if settings.cognito_issuer else [],
-            "scopes_supported": ["scale-mobili/reports:write"],
+            "scopes_supported": ["scale-mobili/reports:write", "scale-mobili/stats:read"],
             "bearer_methods_supported": ["header"],
         }
 
@@ -186,7 +194,9 @@ def create_app(settings: Settings | None = None, store=None):
         try:
             request = ctx.request_context.request
             actor = authenticate(
-                request.headers.get("authorization") if request else None, settings
+                request.headers.get("authorization") if request else None,
+                settings,
+                require_resource=True,
             )
             result = service.submit(
                 escalator_id,
@@ -204,19 +214,25 @@ def create_app(settings: Settings | None = None, store=None):
                 else None,
             )
 
+    register_routes(app, service, settings)
+    from scale_mobili.mcp_tools import register_tools
+
+    register_tools(mcp, service, settings)
     app.mount("/", mcp_app)
     return app
 
 
-def lambda_handler_factory(settings, store):
+def lambda_handler_factory(settings, store, blobs=None):
     def invoke(event, context):
         # Il manager MCP può essere avviato una sola volta: una nuova app per
         # invocazione evita il riuso del manager chiuso nelle invocazioni calde.
         # Archivio e configurazione restano condivisi; MCP è stateless.
-        return Mangum(create_app(settings, store), lifespan="on")(event, context)
+        return Mangum(create_app(settings, store, blobs), lifespan="on")(event, context)
 
     return invoke
 
 
 app = create_app()
-handler = lambda_handler_factory(app.state.settings, app.state.service.store)
+handler = lambda_handler_factory(
+    app.state.settings, app.state.service.store, app.state.service.blobs
+)

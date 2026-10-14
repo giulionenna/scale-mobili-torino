@@ -1,0 +1,41 @@
+mock_provider "aws" {
+  mock_data "aws_caller_identity" {
+    defaults = { account_id = "000000000000" }
+  }
+  mock_data "aws_partition" {
+    defaults = { partition = "aws" }
+  }
+  mock_resource "aws_iam_openid_connect_provider" {
+    defaults = { arn = "arn:aws:iam::000000000000:oidc-provider/token.actions.githubusercontent.com" }
+  }
+  mock_resource "aws_iam_policy" {
+    defaults = { arn = "arn:aws:iam::000000000000:policy/test-runtime-boundary" }
+  }
+}
+
+variables {
+  github_repository = "example/project"
+  budget_reviewed   = true
+}
+
+run "isolated_bootstrap" {
+  command = apply
+  assert {
+    condition     = jsondecode(aws_iam_role.github["deploy"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:example/project:environment:aws-prototype"
+    error_message = "La trust OIDC deve essere vincolata al repository e all'environment esatti."
+  }
+  assert {
+    condition     = aws_s3_bucket_public_access_block.state.block_public_policy && aws_s3_bucket_versioning.state.versioning_configuration[0].status == "Enabled"
+    error_message = "Lo stato deve restare privato e versionato."
+  }
+  assert {
+    condition     = !contains(jsondecode(aws_iam_policy.runtime_boundary.policy).Statement[0].Action, "dynamodb:Scan")
+    error_message = "Il boundary dei runtime non deve concedere Scan."
+  }
+}
+
+run "bootstrap_budget_guard" {
+  command = plan
+  variables { budget_reviewed = false }
+  expect_failures = [var.budget_reviewed]
+}

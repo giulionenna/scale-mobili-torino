@@ -63,7 +63,7 @@ class MemoryStore:
             [
                 e
                 for e in snapshot
-                if e["escalator_id"] == escalator_id
+                if e.get("escalator_id") == escalator_id
                 and e["recorded_at"] <= upper
                 and (after is None or event_key(e)["SK"] > after)
             ],
@@ -93,6 +93,7 @@ class MemoryStore:
             if (
                 not meta
                 or not meta["confirmed"]
+                or meta["station_id"] != event["station_id"]
                 or current["version"] != expected_version
                 or event["event_id"] in self.events
                 or (previous and previous["expires_at"] > now)
@@ -200,8 +201,10 @@ class DynamoStore:
                 "ConditionCheck": {
                     "TableName": self.core.name,
                     "Key": self._serialize({"PK": escalator(event["escalator_id"]), "SK": "META"}),
-                    "ConditionExpression": "confirmed = :yes",
-                    "ExpressionAttributeValues": self._serialize({":yes": True}),
+                    "ConditionExpression": "confirmed = :yes AND station_id = :station",
+                    "ExpressionAttributeValues": self._serialize(
+                        {":yes": True, ":station": event["station_id"]}
+                    ),
                 }
             },
             {
@@ -231,7 +234,11 @@ class DynamoStore:
         ]
         # Client indipendente: quello della resource converte già i valori e non va
         # mescolato alla serializzazione esplicita dell'API low-level.
-        client = boto3.client("dynamodb", region_name=self.resource.meta.client.meta.region_name)
+        if hasattr(self, "report_extras"):
+            ops.extend(self.report_extras(event, actor_id))
+        client = getattr(self, "transaction_client", None) or boto3.client(
+            "dynamodb", region_name=self.resource.meta.client.meta.region_name
+        )
         try:
             client.transact_write_items(TransactItems=ops)
         except ClientError as exc:

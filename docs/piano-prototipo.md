@@ -111,17 +111,19 @@ Al termine di ogni fase annotare qui stato, commit, verifiche e problemi aperti.
 | Lettura e identificazione AWS iniziali | Completate |
 | 1. Condizioni AWS, rete e budget | STS verificato; altri servizi in attesa della rete e del controllo economico |
 | 2. Progetto e adattatori | Preparazione completata nel cloud: build, test API/MCP e adattatore Lambda; CI GitHub preparata, non eseguita |
-| 3. Flusso dati essenziale | Primo incremento realizzato e testato con memoria/Moto; censimento, moderazione e accessi rimanenti da completare |
-| 4. Deploy e prove reali | Modulo tabelle/GSI e plan manuale preparati; bootstrap e deploy completi pendenti, subordinati a fase 1 |
+| 3. Flusso dati essenziale | Backend del prototipo implementato: proposte, moderazione, rettifiche, alias e statistiche; test ed emulatori HTTP riusciti |
+| 4. Deploy e prove reali | Stack backend completo, bootstrap OIDC, bundle Lambda e workflow plan/apply manuali preparati; nessun deploy, subordinato a fase 1 |
 | 5. Interfaccia | Demo sintetica verificata nel browser; integrazione AWS e moderazione complete pendenti |
-| 6. Foto e fonti | Da avviare |
-| 7. Collaudo e misure | Da avviare |
+| 6. Foto e fonti | Pipeline privata, moderazione fotografica e archivio/interpretazione delle fonti implementati e provati con dati sintetici; servizi e acquisizioni GTT reali da verificare |
+| 7. Collaudo e misure | Test backend, HTTP/emulatori, bundle e Terraform simulato completati; export/ripristino amministrativo, consumi e prove AWS/client reali pendenti |
 
 Primo incremento del 14 ottobre 2026: esiti e comandi in
 [sviluppo e verifiche](sviluppo-e-verifiche.md); blocchi e domini necessari in
 [verifica AWS](verifica-iniziale-aws.md). Nessuna risorsa AWS creata e nessuna prova
-ChatGPT/Cognito reale già completata. Le modifiche sono nel workspace; non è stato
-creato un commit né eseguito un push, quindi non si attribuisce un esito a GitHub CI.
+ChatGPT/Cognito reale già completata. Il primo incremento e la nuova interfaccia
+sono stati salvati nel commit `ba02094`; il backend successivo è descritto nel
+[runbook](backend-deployabile.md). Non si attribuisce un esito a GitHub CI prima
+della sua esecuzione sui runner.
 
 Iterazione dell'interfaccia: adottare blu e giallo morbidi, landing separata dalla
 home, panorama su più stazioni e stream, confronto GTT/community, segnalazione

@@ -2,6 +2,12 @@
 
 Proposta aggiornata il 14 ottobre 2026. **DynamoDB scelto dall'utente**; gli altri componenti restano la proposta iniziale. Stato di partenza del progetto: documentazione e progettazione; codice applicativo e nuova infrastruttura AWS ancora da realizzare. La prova descritta qui è da realizzare; nessun risultato è già misurato.
 
+Aggiornamento backend 0.2: codice, API/MCP, foto/proposte moderate, fonti, statistiche
+e Terraform del prototipo sono ora preparati e collaudati con servizi emulati.
+Bootstrap e deploy sono manuali; nessuna risorsa AWS è stata creata. Stato corrente,
+comandi ed evidenze nel [runbook del backend](backend-deployabile.md). Le verifiche
+AWS reali descritte in questo documento rimangono da eseguire.
+
 ## Decisione proposta
 
 Adottare una piattaforma AWS con frontend SvelteKit statico, backend Python su Lambda, API HTTP e MCP che condividono la logica applicativa. Usare **DynamoDB Standard**, con capacità provisioned iniziale da dimensionare entro le quote disponibili, e Terraform/GitHub Actions con OIDC per la distribuzione. La prova convalida chiavi, indici, concorrenza e consumo di DynamoDB.

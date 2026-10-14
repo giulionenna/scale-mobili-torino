@@ -1,6 +1,6 @@
 # Scale Mobili Torino
 
-Progetto di una piattaforma civica indipendente che censisce le scale mobili della metropolitana di Torino, raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. È disponibile un primo incremento dimostrativo con dati sintetici; il deploy AWS resta da verificare e realizzare.
+Piattaforma civica indipendente per scale mobili e ascensori della metropolitana di Torino. Raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. Backend del prototipo eseguibile, pacchetto Lambda e Terraform completi per i flussi principali; **nessuna risorsa applicativa AWS creata**.
 
 [Apri l'anteprima privata interattiva](https://scale-mobili-torino-prototipo.tender-tapir-0169.chatgpt.site). Pubblicata con Sites: usa dati fittizi e accesso simulato, conserva le segnalazioni soltanto nella sessione del browser e non è collegata al backend AWS.
 
@@ -13,10 +13,19 @@ Progetto di una piattaforma civica indipendente che censisce le scale mobili del
 5. [Sviluppo e verifiche del primo incremento](docs/sviluppo-e-verifiche.md)
 6. [Verifica AWS e configurazione di rete](docs/verifica-iniziale-aws.md)
 7. [Interfaccia, segnalazioni e proposte aggiornate](docs/specifiche-interfaccia.md)
+8. [Backend: avvio, contratti, collaudo e deploy successivo](docs/backend-deployabile.md)
 
 Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC costituiscono l'impostazione proposta. Le prove devono verificare concretamente funzionamento e consumo. Regione proposta: Milano, `eu-south-1`.
 
-La repository contiene backend Python/API/MCP, frontend SvelteKit statico, test, CI e un modulo Terraform iniziale per DynamoDB. La demo usa un archivio in memoria con una stazione e due impianti fittizi. L'adattatore DynamoDB è stato verificato con un emulatore; autenticazione Cognito, infrastruttura completa e deploy AWS restano da completare. Le verifiche distinguono simulazioni, emulatori, servizi AWS reali e client MCP reali.
+La repository contiene API e MCP condivisi, JWT Cognito, segnalazioni/rettifiche, proposte e foto moderate, archivio delle fonti, statistiche pubbliche/riservate e censimento con alias. La demo backend usa quattro stazioni e nove impianti fittizi. DynamoDB/S3 e persistenza tra riavvii API sono collaudati con emulatori HTTP; lo stack e il blocco budget sono verificati con provider Terraform simulato. Login Cognito, deploy, consumi e client MCP reali saranno verificati dopo l'attivazione autorizzata.
+
+```bash
+uv sync --project backend --frozen
+SMT_MODE=demo uv run --project backend uvicorn scale_mobili.app:app --host 127.0.0.1 --port 8000
+```
+
+Contratto interattivo su `/docs`; backend in memoria per la prova immediata.
+La nuova UI pubblicata resta una demo browser separata dalle API.
 
 ## Requisiti essenziali
 

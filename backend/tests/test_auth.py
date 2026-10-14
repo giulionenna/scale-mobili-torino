@@ -20,6 +20,9 @@ def jwt_environment(monkeypatch):
         cognito_issuer="https://issuer.example/pool",
         cognito_client_id="test-client",
         cursor_secret="test-only-" * 5,
+        frontend_url="https://frontend.example",
+        photos_bucket="test-photos",
+        sources_bucket="test-sources",
     )
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     client = SimpleNamespace(
@@ -75,3 +78,22 @@ def test_demo_never_runs_on_lambda(monkeypatch):
     monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "test-function")
     with pytest.raises(ValueError, match="non può essere distribuita"):
         Settings(mode="demo")
+
+
+def test_rest_access_token_without_aud_and_mcp_resource_binding(jwt_environment):
+    settings, key, claims = jwt_environment
+    claims.pop("aud")
+    token = "Bearer " + jwt.encode(claims, key, algorithm="RS256")
+    assert authenticate(token, settings).id == "test-user"
+    with pytest.raises(DomainError):
+        authenticate(token, settings, require_resource=True)
+
+
+def test_missing_statistics_scope_not_equivalent_to_login(jwt_environment):
+    settings, key, claims = jwt_environment
+    actor = authenticate("Bearer " + jwt.encode(claims, key, algorithm="RS256"), settings)
+    from scale_mobili.platform import PlatformService
+
+    with pytest.raises(DomainError) as caught:
+        PlatformService.require_scope(actor, "stats:read")
+    assert caught.value.status_code == 403

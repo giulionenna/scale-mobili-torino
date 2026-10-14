@@ -15,6 +15,9 @@ jobs:
       AWS_EC2_METADATA_DISABLED: 'true'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: astral-sh/setup-uv@v6
         with:
           version: '0.12.23'
@@ -22,6 +25,9 @@ jobs:
       - run: uv run --project backend ruff check backend scripts
       - run: uv run --project backend ruff format --check backend scripts
       - run: uv run --project backend pytest backend/tests -q
+      - run: uv run --project backend python scripts/emulated_http_check.py
+      - run: python scripts/build_lambda.py
+      - run: python scripts/check_lambda.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -51,9 +57,24 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.14.6'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: python scripts/build_lambda.py
+        working-directory: .
       - run: terraform fmt -check -recursive
       - run: terraform init -backend=false -input=false
       - run: terraform validate
+      - run: terraform test
+      - run: terraform init -backend=false -input=false
+        working-directory: infra/bootstrap
+      - run: terraform validate
+        working-directory: infra/bootstrap
+      - run: terraform test
+        working-directory: infra/bootstrap

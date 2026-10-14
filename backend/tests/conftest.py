@@ -4,7 +4,8 @@ from moto import mock_aws
 
 from scale_mobili.config import Settings
 from scale_mobili.domain import Actor
-from scale_mobili.store import DynamoStore, MemoryStore
+from scale_mobili.repository import DynamoRepository as DynamoStore
+from scale_mobili.repository import MemoryRepository as MemoryStore
 
 
 @pytest.fixture(autouse=True)
@@ -22,7 +23,7 @@ def settings():
 
 @pytest.fixture
 def actor():
-    return Actor(id="demo-user-1", scopes=frozenset({"reports:write"}))
+    return Actor(id="demo-user-1", scopes=frozenset({"reports:write", "stats:read"}))
 
 
 @pytest.fixture(params=["memory", "dynamodb-emulated"])
@@ -73,6 +74,7 @@ def store(request):
                     "PK": "CATALOG#STATIONS",
                     "SK": f"STATION#{station['station_id']}",
                     "schema_version": 1,
+                    "version": 1,
                 }
             )
         for item in memory.escalators.values():
