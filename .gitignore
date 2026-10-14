@@ -1,0 +1,34 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.aws/
+
+# Infrastructure state and plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+outputs.json
+
+# Dependencies and build products
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+node_modules/
+.svelte-kit/
+build/
+dist/
+
+# Private content
+private-data/
+private-photos/
+backups/
+*.log
