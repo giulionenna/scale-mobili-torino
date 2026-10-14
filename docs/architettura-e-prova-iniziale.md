@@ -94,6 +94,8 @@ Usare un backend Python con FastAPI per l'API e l'SDK MCP ufficiale per il proto
 
 Per i primi strumenti usare richieste brevi e risposte JSON su trasporto Streamable HTTP stateless. Verificare anche handshake, notifiche e metodi previsti dalla versione del protocollo scelta. Una chiamata JSON riuscita con un client di test non basta a dichiarare compatibilità con ChatGPT.
 
+Primo incremento verificato nel cloud il 14 ottobre 2026: SDK MCP 1.30.0 e Mangum 0.22.0, handshake/notifiche e chiamate su HTTP loopback. Il manager HTTP dell'SDK può essere avviato una sola volta per istanza: l'handler prepara una nuova app MCP per invocazione, condividendo configurazione e archivio. Le invocazioni ripetute sono provate con eventi Lambda simulati; latenza e funzionamento su Lambda AWS e ChatGPT restano da misurare. Dettagli e limiti in [sviluppo e verifiche](sviluppo-e-verifiche.md).
+
 Le letture pubbliche mostrano solo evidenze pubblicabili. Le scritture richiedono un utente autenticato, scope applicativo, autorizzazione sull'operazione e limiti antiabuso. L'API attribuisce l'autore dal token: il client non può scegliere un altro autore. Le operazioni di moderazione verificano il ruolo sul server.
 
 MCP iniziale: `list_stations`, `list_escalators`, `get_escalator_status`, `get_station_status`, `get_escalator_history`, `get_outage_statistics`, `compare_official_reports`, `submit_escalator_report`. Implementazione progressiva; nella prova bastano stato, storico e invio segnalazione. Le risposte includono link consultabili alle schede/fonti e le incertezze. Una descrizione ambigua richiede di identificare l'impianto prima della scrittura.

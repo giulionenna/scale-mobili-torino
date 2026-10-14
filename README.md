@@ -1,16 +1,22 @@
 # Scale Mobili Torino
 
-Documentazione iniziale per una piattaforma civica indipendente che censisce le scale mobili della metropolitana di Torino, raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili.
+Progetto di una piattaforma civica indipendente che censisce le scale mobili della metropolitana di Torino, raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. È disponibile un primo incremento dimostrativo con dati sintetici; il deploy AWS resta da verificare e realizzare.
+
+[Apri l'anteprima privata interattiva](https://scale-mobili-torino-prototipo.tender-tapir-0169.chatgpt.site). Pubblicata con Sites: usa dati fittizi e accesso simulato, conserva le segnalazioni soltanto nella sessione del browser e non è collegata al backend AWS.
 
 ## Da leggere
 
 1. [Istruzioni per Codex](AGENTS.md)
 2. [Architettura e prova iniziale](docs/architettura-e-prova-iniziale.md)
 3. [Modello DynamoDB](docs/modello-dynamodb.md)
+4. [Piano operativo per il prototipo](docs/piano-prototipo.md)
+5. [Sviluppo e verifiche del primo incremento](docs/sviluppo-e-verifiche.md)
+6. [Verifica AWS e configurazione di rete](docs/verifica-iniziale-aws.md)
+7. [Interfaccia, segnalazioni e proposte aggiornate](docs/specifiche-interfaccia.md)
 
 Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC costituiscono l'impostazione proposta. Le prove devono verificare concretamente funzionamento e consumo. Regione proposta: Milano, `eu-south-1`.
 
-Questo pacchetto contiene documentazione e istruzioni. Il codice applicativo, la nuova infrastruttura e il deploy sono da realizzare. Le verifiche eseguite dal futuro agente devono essere riportate distinguendo simulazioni, emulatori, servizi AWS reali e client MCP reali.
+La repository contiene backend Python/API/MCP, frontend SvelteKit statico, test, CI e un modulo Terraform iniziale per DynamoDB. La demo usa un archivio in memoria con una stazione e due impianti fittizi. L'adattatore DynamoDB è stato verificato con un emulatore; autenticazione Cognito, infrastruttura completa e deploy AWS restano da completare. Le verifiche distinguono simulazioni, emulatori, servizi AWS reali e client MCP reali.
 
 ## Requisiti essenziali
 

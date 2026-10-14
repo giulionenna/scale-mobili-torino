@@ -1,0 +1,59 @@
+name: Verifiche progetto
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --project backend --frozen
+      - run: uv run --project backend ruff check backend scripts
+      - run: uv run --project backend ruff format --check backend scripts
+      - run: uv run --project backend pytest backend/tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      PUBLIC_API_URL: ''
+      PUBLIC_COGNITO_DOMAIN: ''
+      PUBLIC_COGNITO_CLIENT_ID: ''
+      PUBLIC_BROWSER_DEMO: 'false'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.14.6'
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

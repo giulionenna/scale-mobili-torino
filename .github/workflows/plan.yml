@@ -1,0 +1,57 @@
+name: Piano AWS manuale (senza apply)
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget_reviewed:
+        description: Quote residue e tutte le voci di costo sono state verificate
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main' && inputs.budget_reviewed
+    environment: aws-prototype
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.14.6'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: eu-south-1
+          role-session-name: scale-mobili-plan
+      - name: Inizializza stato privato
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          test -n "$STATE_BUCKET"
+          terraform init -input=false -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=scale-mobili/prototype/terraform.tfstate" \
+            -backend-config="region=eu-south-1" -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true" > "$RUNNER_TEMP/terraform-init.log" 2>&1
+      - name: Piano privato, nessuna modifica
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          terraform plan -input=false -var='budget_reviewed=true' \
+            -out="$RUNNER_TEMP/prototype.tfplan" > "$RUNNER_TEMP/terraform-plan.log" 2>&1
+          aws s3 cp "$RUNNER_TEMP/prototype.tfplan" \
+            "s3://$STATE_BUCKET/scale-mobili/prototype/plans/$GITHUB_SHA.tfplan" \
+            --sse AES256 --only-show-errors
+          echo "Piano privato salvato per revisione sul commit $GITHUB_SHA. Nessuna risorsa applicata." >> "$GITHUB_STEP_SUMMARY"
+      - name: Rimuovi piano e log temporanei
+        if: always()
+        run: rm -f "$RUNNER_TEMP/prototype.tfplan" "$RUNNER_TEMP/terraform-init.log" "$RUNNER_TEMP/terraform-plan.log"
