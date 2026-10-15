@@ -36,6 +36,14 @@ variable "github_environment" {
   type    = string
   default = "aws-prototype"
 }
+variable "github_subject_prefix" {
+  type        = string
+  description = "sub_claim_prefix restituito dall'API GitHub Actions OIDC; conserva gli ID immutabili quando abilitati."
+  validation {
+    condition     = can(regex("^repo:[a-zA-Z0-9_.-]+(@[0-9]+)?/[a-zA-Z0-9_.-]+(@[0-9]+)?$", var.github_subject_prefix)) && replace(var.github_subject_prefix, "/@[0-9]+/", "") == "repo:${var.github_repository}"
+    error_message = "Usare il prefisso OIDC verificato per il repository esatto, senza wildcard."
+  }
+}
 variable "existing_oidc_provider_arn" {
   type        = string
   default     = ""
@@ -69,7 +77,7 @@ locals {
     Effect = "Allow", Principal = { Federated = local.oidc }, Action = "sts:AssumeRoleWithWebIdentity",
     Condition = { StringEquals = {
       "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:${var.github_environment}"
+      "token.actions.githubusercontent.com:sub" = "${var.github_subject_prefix}:environment:${var.github_environment}"
     } }
   }] })
 }
@@ -127,7 +135,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
 resource "aws_iam_policy" "runtime_boundary" {
   name = "${var.prefix}-runtime-boundary"
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:TransactWriteItems"], Resource = concat(local.table_arns, [for arn in local.table_arns : "${arn}/index/*"]) },
+    { Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:ConditionCheckItem"], Resource = concat(local.table_arns, [for arn in local.table_arns : "${arn}/index/*"]) },
     { Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"], Resource = ["arn:${local.partition}:s3:::${var.prefix}-photos-${local.account}/*", "arn:${local.partition}:s3:::${var.prefix}-sources-${local.account}/originals/*"] },
     { Effect = "Allow", Action = ["ssm:GetParameter"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/cursor-secret" },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = "arn:${local.partition}:kms:${var.region}:${local.account}:key/*", Condition = { StringEquals = { "kms:ViaService" = "ssm.${var.region}.amazonaws.com", "kms:EncryptionContext:PARAMETER_ARN" = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/cursor-secret" } } },
@@ -152,11 +160,12 @@ locals {
   read_statements = [
     { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
     { Effect = "Allow", Action = ["dynamodb:DescribeTable", "dynamodb:DescribeContinuousBackups", "dynamodb:DescribeTimeToLive", "dynamodb:ListTagsOfResource"], Resource = local.table_arns },
-    { Effect = "Allow", Action = ["lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:GetPolicy", "lambda:ListVersionsByFunction", "lambda:GetFunctionConcurrency", "lambda:ListTags"], Resource = "arn:${local.partition}:lambda:${var.region}:${local.account}:function:${var.prefix}-*" },
+    { Effect = "Allow", Action = ["lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:GetFunctionCodeSigningConfig", "lambda:GetPolicy", "lambda:ListVersionsByFunction", "lambda:GetFunctionConcurrency", "lambda:ListTags"], Resource = "arn:${local.partition}:lambda:${var.region}:${local.account}:function:${var.prefix}-*" },
     { Effect = "Allow", Action = ["s3:GetBucket*", "s3:ListBucket"], Resource = "arn:${local.partition}:s3:::${var.prefix}-*" },
     { Effect = "Allow", Action = ["iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies"], Resource = local.runtime_roles },
     { Effect = "Allow", Action = ["ssm:GetParameter", "ssm:ListTagsForResource"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/*" },
-    { Effect = "Allow", Action = ["cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeUserPoolDomain", "cognito-idp:DescribeResourceServer", "cognito-idp:GetGroup", "cognito-idp:ListTagsForResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
+    { Effect = "Allow", Action = ["cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeResourceServer", "cognito-idp:GetGroup", "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:ListTagsForResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
+    { Effect = "Allow", Action = ["cognito-idp:DescribeUserPoolDomain"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } },
     { Effect = "Allow", Action = ["apigateway:GET"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
     { Effect = "Allow", Action = ["logs:DescribeLogGroups", "logs:ListTagsForResource"], Resource = "*" },
     { Effect = "Allow", Action = ["scheduler:GetSchedule", "scheduler:ListTagsForResource"], Resource = "arn:${local.partition}:scheduler:${var.region}:${local.account}:schedule/default/${var.prefix}-*" }
@@ -169,7 +178,8 @@ locals {
     { Effect = "Allow", Action = ["iam:DeleteRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole"], Resource = local.runtime_roles },
     { Effect = "Allow", Action = ["iam:PassRole"], Resource = local.runtime_roles, Condition = { StringEquals = { "iam:PassedToService" = ["lambda.amazonaws.com", "scheduler.amazonaws.com"] } } },
     { Effect = "Allow", Action = ["ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource", "ssm:RemoveTagsFromResource"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/*" },
-    { Effect = "Allow", Action = ["cognito-idp:CreateUserPool", "cognito-idp:UpdateUserPool", "cognito-idp:DeleteUserPool", "cognito-idp:CreateUserPoolClient", "cognito-idp:UpdateUserPoolClient", "cognito-idp:DeleteUserPoolClient", "cognito-idp:CreateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain", "cognito-idp:CreateResourceServer", "cognito-idp:UpdateResourceServer", "cognito-idp:DeleteResourceServer", "cognito-idp:CreateGroup", "cognito-idp:UpdateGroup", "cognito-idp:DeleteGroup", "cognito-idp:TagResource", "cognito-idp:UntagResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
+    { Effect = "Allow", Action = ["cognito-idp:CreateUserPool"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region, "aws:RequestTag/Project" = "scale-mobili-torino", "aws:RequestTag/Environment" = "prototype" } } },
+    { Effect = "Allow", Action = ["cognito-idp:UpdateUserPool", "cognito-idp:DeleteUserPool", "cognito-idp:CreateUserPoolClient", "cognito-idp:UpdateUserPoolClient", "cognito-idp:DeleteUserPoolClient", "cognito-idp:CreateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain", "cognito-idp:CreateResourceServer", "cognito-idp:UpdateResourceServer", "cognito-idp:DeleteResourceServer", "cognito-idp:CreateGroup", "cognito-idp:UpdateGroup", "cognito-idp:DeleteGroup", "cognito-idp:TagResource", "cognito-idp:UntagResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
     { Effect = "Allow", Action = ["apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
     { Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:TagResource", "logs:UntagResource"], Resource = "arn:${local.partition}:logs:${var.region}:${local.account}:log-group:/aws/lambda/${var.prefix}-*:*" },
     { Effect = "Allow", Action = ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule", "scheduler:TagResource", "scheduler:UntagResource"], Resource = "arn:${local.partition}:scheduler:${var.region}:${local.account}:schedule/default/${var.prefix}-*" }

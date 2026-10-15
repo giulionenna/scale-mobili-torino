@@ -39,15 +39,26 @@ le risorse applicative non sono ancora state create.
 - Preparato e ispezionato anche un piano applicativo reale privato: 37 creazioni,
   nessuna modifica o eliminazione, tre Lambda senza riserve e nessuno scheduler.
   Non applicato: il deploy applicativo resta affidato ai workflow manuali OIDC.
-- **Blocco GitHub:** l'integrazione restituisce HTTP 403 `Resource not accessible
+- L'utente ha completato l'environment `aws-prototype`, con revisore e branch
+  `main`. Il primo workflow manuale ha verificato input e avvio, ma l'assunzione
+  OIDC è stata rifiutata: il repository usa il prefisso immutabile restituito
+  dall'API GitHub (`use_immutable_subject=true`). Il bootstrap ora richiede
+  `github_subject_prefix` e conserva esattamente quel prefisso nella trust dei
+  due ruoli, senza wildcard. Non si modifica la configurazione OIDC di GitHub.
+- Le policy runtime e il boundary ora includono `dynamodb:ConditionCheckItem`:
+  le condizioni nelle transazioni richiedono questo permesso oltre a Put/Update.
+  Le verifiche con emulatori non dimostravano la correttezza dei permessi IAM.
+- **Limite dell'integrazione GitHub:** restituisce HTTP 403 `Resource not accessible
   by integration` per la creazione dell'environment `aws-prototype`, le variabili
   Actions e la chiave pubblica necessaria a scrivere i segreti. L'accesso ADMIN
   dell'utente alla repository non estende i permessi del token dell'integrazione.
-  Nessun environment, variabile o segreto è stato creato. Configurarli con un
-  accesso GitHub che autorizzi queste operazioni, come descritto nel runbook;
-  non trasferire le chiavi AWS permanenti su GitHub.
+  L'utente ha configurato queste risorse dalle impostazioni GitHub. Anche la
+  revisione dei job protetti restituisce HTTP 403 all'integrazione: il revisore
+  deve usare Review deployments nella pagina Actions. Non trasferire le chiavi
+  AWS permanenti su GitHub.
 - Cinque test dello stack Terraform con provider simulato, compresa l'opzione
-  delle riserve future e il rifiuto di valori frazionari; due test bootstrap.
+  delle riserve future e il rifiuto di valori frazionari; quattro test bootstrap,
+  compresi prefisso OIDC immutabile e rifiuto di un repository differente.
   Validazioni e formattazione riuscite; nessun test crea risorse AWS. Backend:
   70 test passati e pacchetto Lambda verificato in isolamento.
 
@@ -226,3 +237,5 @@ pianificata sulle risorse dedicate, preservando stato, audit e originali.
 - [Service Quotas: richiesta e apertura facoltativa del caso di assistenza](https://docs.aws.amazon.com/servicequotas/2019-06-24/apireference/API_RequestServiceQuotaIncrease.html).
 - [Piani Free e Paid e loro scadenza](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
 - [SSM Parameter Store: prezzi Standard](https://aws.amazon.com/systems-manager/pricing/).
+- [GitHub OIDC: identificatori immutabili dei nuovi repository](https://docs.github.com/en/actions/reference/security/oidc).
+- [DynamoDB: autorizzazioni delle transazioni](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis-iam.html).

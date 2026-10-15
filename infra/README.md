@@ -5,6 +5,16 @@ Lambda API e worker, HTTP API/MCP, Cognito, S3 privato, SSM, IAM e log. Schedule
 disattivati per default. `bootstrap/` prepara stato privato, OIDC GitHub,
 ruoli plan/deploy e permissions boundary dedicati.
 
+Il bootstrap richiede `github_subject_prefix` dall'API
+`GET /repos/OWNER/REPO/actions/oidc/customization/sub` (`sub_claim_prefix`).
+Per i repository nuovi GitHub include gli ID immutabili di proprietario e repo:
+conservarli nella trust, senza sostituirli con il solo nome.
+Le transazioni DynamoDB autorizzano le singole operazioni, incluso
+`dynamodb:ConditionCheckItem`, sia nella policy runtime sia nel boundary.
+Il provider legge anche configurazione MFA Cognito e code-signing Lambda.
+`CreateUserPool` e `DescribeUserPoolDomain` non supportano ARN specifici: la
+creazione è vincolata a regione e tag Project/Environment, la lettura alla regione.
+
 Il 15 ottobre è stato preparato e ispezionato un piano reale privato del solo
 bootstrap: undici creazioni, nessuna modifica o eliminazione, riuso del provider
 OIDC esistente. Il bootstrap è stato applicato; il suo stato è fuori dalla repo
