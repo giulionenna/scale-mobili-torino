@@ -40,6 +40,12 @@ run "isolated_bootstrap" {
     error_message = "CreateUserPool non supporta ARN di risorsa: vincolare la creazione ai tag e alla regione del progetto."
   }
   assert {
+    condition = alltrue([for role in ["plan", "deploy"] : alltrue([for action in ["s3:GetLifecycleConfiguration", "s3:GetReplicationConfiguration", "s3:GetEncryptionConfiguration", "s3:GetAccelerateConfiguration"] : anytrue([for statement in jsondecode(aws_iam_role_policy.github[role].policy).Statement :
+      contains(statement.Action, action)
+    ])])])
+    error_message = "Le letture di lifecycle, replica, cifratura e accelerazione S3 non rientrano in GetBucket*."
+  }
+  assert {
     condition = alltrue([for role in ["plan", "deploy"] : anytrue([for statement in jsondecode(aws_iam_role_policy.github[role].policy).Statement : try(
       contains(statement.Action, "ssm:DescribeParameters") && statement.Resource == "*" && statement.Condition.StringEquals["aws:RequestedRegion"] == "eu-south-1", false
     )])])
