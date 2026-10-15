@@ -118,3 +118,9 @@ Il callback Cognito usa `/auth/cognito`: Sites riserva `/callback` al proprio
 accesso ChatGPT. Le due autenticazioni mantengono funzioni distinte: accesso
 privato al sito e autorizzazione alle API AWS. Il callback applicativo non
 intercetta né sostituisce le rotte di accesso gestite da Sites.
+
+Il resource server Cognito usa l'URL MCP come identificatore. Gli scope custom
+hanno quindi prefisso `<api_url>/mcp/`: il frontend li legge da `/api/config`,
+la discovery MCP pubblica gli stessi valori e il backend riconosce soltanto
+quelli della propria risorsa. Managed login rifiuta scope appartenenti a un
+altro identificatore quando viene richiesto il binding `resource`.

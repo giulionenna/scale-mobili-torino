@@ -53,7 +53,7 @@ def check_oauth(browser, web, base):
             authorization.update({key: values[0] for key, values in params.items()})
             assert authorization["code_challenge_method"] == "S256"
             assert authorization["resource"] == base + "/mcp"
-            assert "scale-mobili/stats:read" in authorization["scope"]
+            assert base + "/mcp/stats:read" in authorization["scope"]
             route.fulfill(
                 status=302,
                 headers={

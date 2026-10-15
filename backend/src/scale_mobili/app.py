@@ -9,7 +9,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import CallToolResult, TextContent
 
-from scale_mobili.auth import authenticate, challenge
+from scale_mobili.auth import authenticate, challenge, oauth_scopes
 from scale_mobili.config import Settings, get_settings
 from scale_mobili.domain import CorrectionInput, DomainError, ReportInput
 from scale_mobili.middleware import BodyLimitMiddleware
@@ -89,7 +89,7 @@ def create_app(settings: Settings | None = None, store=None, blobs=None):
         return {
             "resource": settings.public_url.rstrip("/") + "/mcp",
             "authorization_servers": [settings.cognito_issuer] if settings.cognito_issuer else [],
-            "scopes_supported": ["scale-mobili/reports:write", "scale-mobili/stats:read"],
+            "scopes_supported": oauth_scopes(settings),
             "bearer_methods_supported": ["header"],
         }
 

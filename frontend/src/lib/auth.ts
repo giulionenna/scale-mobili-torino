@@ -9,6 +9,7 @@ export type AuthConfig = {
   cognito_domain: string;
   cognito_client_id: string;
   resource: string;
+  scopes?: string[];
 };
 let config: AuthConfig | undefined;
 export function configureAuth(value: AuthConfig) {
@@ -16,10 +17,16 @@ export function configureAuth(value: AuthConfig) {
 }
 async function settings() {
   config ??= await request<AuthConfig>("/api/config");
+  const resource = config.resource || `${apiBase}/mcp`;
   return {
     domain: (PUBLIC_COGNITO_DOMAIN || config.cognito_domain).replace(/\/$/, ""),
     client: PUBLIC_COGNITO_CLIENT_ID || config.cognito_client_id,
-    resource: config.resource || `${apiBase}/mcp`,
+    resource,
+    scopes: config.scopes || [
+      "openid",
+      `${resource}/reports:write`,
+      `${resource}/stats:read`,
+    ],
   };
 }
 const callback = () => `${window.location.origin}/auth/cognito`;
@@ -41,7 +48,7 @@ export function returnDestination() {
 }
 
 export async function login(destination = "/home/"): Promise<void> {
-  const { domain, client, resource } = await settings();
+  const { domain, client, resource, scopes } = await settings();
   if (!domain || !client)
     throw new Error("Il login non è ancora configurato in questo ambiente.");
   const verifier = encode(crypto.getRandomValues(new Uint8Array(32)));
@@ -59,7 +66,7 @@ export async function login(destination = "/home/"): Promise<void> {
     response_type: "code",
     client_id: client,
     redirect_uri: callback(),
-    scope: "openid scale-mobili/reports:write scale-mobili/stats:read",
+    scope: scopes.join(" "),
     code_challenge: encode(new Uint8Array(digest)),
     code_challenge_method: "S256",
     state,

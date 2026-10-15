@@ -59,6 +59,10 @@ run "protected_backend" {
     error_message = "Client pubblico con authorization code e callback Cognito separato dal callback riservato a Sites."
   }
   assert {
+    condition     = aws_cognito_resource_server.platform.identifier == output.mcp_url && contains(aws_cognito_user_pool_client.web.allowed_oauth_scopes, "${output.mcp_url}/reports:write") && contains(aws_cognito_user_pool_client.web.allowed_oauth_scopes, "${output.mcp_url}/stats:read")
+    error_message = "Resource binding Cognito richiede che gli scope custom appartengano alla risorsa MCP richiesta."
+  }
+  assert {
     condition     = output.proposed_capacity.total_rcu == 0 && output.proposed_capacity.total_wcu == 0 && alltrue([for table in aws_dynamodb_table.prototype : table.billing_mode == "PAY_PER_REQUEST" && table.on_demand_throughput[0].max_read_request_units == 100 && table.on_demand_throughput[0].max_write_request_units == 20])
     error_message = "La prova deve partire a consumo con limiti espliciti sulle tabelle."
   }

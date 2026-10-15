@@ -2,7 +2,7 @@ from fastapi import Depends, Header, Query, Request
 from fastapi.responses import Response
 
 from scale_mobili.aggregates import rebuild_snapshot
-from scale_mobili.auth import authenticate
+from scale_mobili.auth import authenticate, oauth_scopes
 from scale_mobili.domain import (
     CorrectionInput,
     DeviceReportInput,
@@ -30,7 +30,7 @@ def register_routes(app, service, settings):
             "cognito_domain": settings.cognito_domain,
             "cognito_client_id": settings.cognito_client_id,
             "resource": settings.public_url.rstrip("/") + "/mcp",
-            "scopes": ["openid", "scale-mobili/reports:write", "scale-mobili/stats:read"],
+            "scopes": ["openid", *oauth_scopes(settings)],
         }
 
     @app.get("/api/me")
