@@ -77,6 +77,28 @@ le risorse applicative non sono ancora state create.
   Validazioni e formattazione riuscite; nessun test crea risorse AWS. Backend:
   70 test passati e pacchetto Lambda verificato in isolamento.
 
+## Correzione dal collaudo Cognito reale
+
+Il primo deploy OIDC è riuscito. Health, letture pubbliche, autorizzazione REST,
+seed sintetico e ricalcolo Lambda su DynamoDB sono verificati in AWS. Il login
+classico Lite ha autenticato l'account sintetico, ma l'access token non include
+`aud` nonostante `resource` nella richiesta. Il backend mantiene il requisito
+MCP di audience esatta: non si allenta la validazione per accettare quel token.
+
+La correzione usa Essentials, managed login v2 e lo stile predefinito associato
+al client. AWS documenta il resource binding per managed login e il mantenimento
+di `aud` nel rinnovo. La tariffa Essentials di Milano verificata tramite Price
+List è 0,015 USD/MAU: con due MAU aggiunge 0,019 USD alle ipotesi precedenti.
+La previsione passa da 0,01955 a 0,03855 USD per la prova e da 0,05444 a
+0,07344 USD/mese leggero, arrotondata a 0,04 e 0,08 USD prima di crediti e
+inclusioni. Nessun canone fisso aggiuntivo o migrazione dati; l'obiettivo
+concordato di pochi centesimi resta rispettato. Il collaudo di audience,
+rinnovo e scritture MCP con la configurazione aggiornata rimane da eseguire.
+
+Riferimenti: [resource binding Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html),
+[managed login Essentials](https://docs.aws.amazon.com/cognito/latest/developerguide/feature-plans-features-essentials.html),
+[prezzi Cognito](https://aws.amazon.com/cognito/pricing/).
+
 ## Configurazione preparata per uso leggero
 
 | Voce | Impostazione |
@@ -84,7 +106,7 @@ le risorse applicative non sono ancora state create.
 | DynamoDB | Due tabelle Standard e tre GSI; `PAY_PER_REQUEST` predefinito, nessuna capacità fissa prenotata |
 | Limiti DynamoDB | 100 unità di lettura e 20 di scrittura/s per tabella e per GSI; limiti best effort |
 | Variante provisioned | Opzionale: 7 RCU e 7 WCU totali, soltanto dopo verifica delle inclusioni residue |
-| Cognito | Piano `LITE`, Hosted UI classica, utenti creati dall’amministratore; non si attivano funzioni Plus, SMS o login machine-to-machine |
+| Cognito | Piano `ESSENTIALS`, managed login v2 e stile predefinito, utenti creati dall’amministratore; non si attivano funzioni Plus, SMS o login machine-to-machine |
 | Lambda | API, aggregatore e collector a consumo, 512 MB; concorrenza condivisa nella quota regionale 10; timeout 15/30/30 secondi |
 | HTTP API | 2 richieste/s, burst 10: consente il caricamento delle schede del prototipo |
 | Log | Livello WARN, retention di un giorno |
@@ -123,7 +145,7 @@ Compilare una stima con tariffe correnti Milano, unità effettive e benefici res
 | Variante provisioned | Ore × (7 × tariffa RCU/ora + 7 × tariffa WCU/ora), sottraendo solo quota residua accertata |
 | Lambda | Invocazioni + GB-secondi misurati, incluse partenze a freddo e worker manuali |
 | HTTP API | Richieste fatturabili, dimensione dei payload e trasferimenti |
-| Cognito Lite | MAU di prova e dell’account/organizzazione, oltre le eventuali inclusioni condivise |
+| Cognito Essentials | MAU di prova e dell’account/organizzazione, oltre le eventuali inclusioni condivise |
 | S3 | Byte-mese di foto, originali, stato, versioni, piani e bundle; PUT/GET/LIST |
 | Log | Byte acquisiti e conservati; non si attivano query ricorrenti o metriche personalizzate |
 | SSM/KMS | Parametro Standard e operazioni di cifratura/decifratura; AWS-managed KMS non significa ogni operazione gratuita |
@@ -141,7 +163,7 @@ sono agosto–ottobre 2026, luglio 2025 per KMS.
 | DynamoDB storage | 0,29715 USD/GB-mese, senza sottrarre i primi 25 GB gratuiti |
 | Lambda x86 a consumo | 0,23 USD/milione richieste + 0,0000195172 USD/GB-secondo |
 | HTTP API | 1,17 USD/milione richieste |
-| Cognito Lite | 0,0055 USD/MAU, senza sottrarre inclusioni condivise |
+| Cognito Essentials | 0,015 USD/MAU, senza sottrarre inclusioni condivise |
 | S3 Standard | 0,024 USD/GB-mese; 0,0053 USD/1.000 PUT/LIST; 0,0004 USD/1.000 GET |
 | Log Standard | 0,60 USD/GB acquisito; 0,032 USD/GB-mese conservato |
 | KMS simmetrico | 0,03 USD/10.000 richieste; nessuna chiave gestita dal cliente |
@@ -158,7 +180,7 @@ sono agosto–ottobre 2026, luglio 2025 per KMS.
 | Log acquisiti, conservazione un giorno | 0,001 GB | 0,01 GB |
 | KMS | 103 operazioni | 1.003 operazioni |
 | Trasferimento Internet | 0,02 GB | 0,05 GB |
-| **Totale arrotondato, prima di crediti e inclusioni** | **0,02 USD** | **0,06 USD** |
+| **Totale arrotondato, prima di crediti e inclusioni** | **0,04 USD** | **0,08 USD** |
 
 Stima condizionata ai volumi indicati, non consumo misurato né tetto garantito.
 La durata media di un secondo è da collaudare: timeout ripetuti, più utenti,
