@@ -196,10 +196,10 @@ def main():
             processes.append(
                 subprocess.Popen(
                     [
-                        "npm",
-                        "run",
-                        "dev",
-                        "--",
+                        "node",
+                        "node_modules/vite/bin/vite.js",
+                        "--host",
+                        "127.0.0.1",
                         "--port",
                         str(web_port),
                         "--strictPort",
