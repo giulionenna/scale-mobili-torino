@@ -49,7 +49,7 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", "email", "scale-mobili/reports:write", "scale-mobili/stats:read"]
   supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = distinct(concat(["${var.frontend_url}/callback"], var.callback_urls))
+  callback_urls                        = distinct(concat(["${var.frontend_url}/auth/cognito"], var.callback_urls))
   logout_urls                          = [var.frontend_url]
   explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH"]
   access_token_validity                = 15

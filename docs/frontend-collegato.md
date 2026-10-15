@@ -52,7 +52,7 @@ dalle verifiche di ogni endpoint, non dal ruolo scelto nell’interfaccia.
 origine e, durante lo sviluppo, il proxy Vite. Dominio e client Cognito vengono da
 `/api/config`, con eventuali override pubblici `PUBLIC_COGNITO_DOMAIN` e
 `PUBLIC_COGNITO_CLIENT_ID`. Il backend deve avere `SMT_PUBLIC_URL` e
-`SMT_FRONTEND_URL` coerenti; Cognito deve consentire il callback `/callback`.
+`SMT_FRONTEND_URL` coerenti; Cognito deve consentire il callback `/auth/cognito`.
 
 L’accesso usa authorization code, PKCE S256 e state. La callback ripulisce il codice
 dalla cronologia e torna solo a una pagina interna consentita. I token rimangono
@@ -112,3 +112,9 @@ di segnalazione/moderazione, con attese aggiornate per le operazioni asincrone.
 
 DynamoDB/S3 reali, login e rinnovo Cognito reali, coerenza degli indici, latenza e
 consumi restano da provare dopo l’attivazione AWS concordata. La CI non esegue deploy.
+
+
+Il callback Cognito usa `/auth/cognito`: Sites riserva `/callback` al proprio
+accesso ChatGPT. Le due autenticazioni mantengono funzioni distinte: accesso
+privato al sito e autorizzazione alle API AWS. Il callback applicativo non
+intercetta né sostituisce le rotte di accesso gestite da Sites.

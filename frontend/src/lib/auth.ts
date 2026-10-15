@@ -22,7 +22,7 @@ async function settings() {
     resource: config.resource || `${apiBase}/mcp`,
   };
 }
-const callback = () => `${window.location.origin}/callback`;
+const callback = () => `${window.location.origin}/auth/cognito`;
 const encode = (value: Uint8Array) =>
   btoa(String.fromCharCode(...value))
     .replace(/\+/g, "-")
@@ -90,7 +90,7 @@ export async function finishLogin(): Promise<void> {
   const stored = sessionStorage.getItem("smt.oauth");
   sessionStorage.removeItem("smt.oauth");
   // Remove the authorization code from browser history even on a failed callback.
-  window.history.replaceState({}, "", "/callback");
+  window.history.replaceState({}, "", "/auth/cognito");
   if (!stored) throw new Error("Accesso non avviato da questa sessione.");
   const pending = JSON.parse(stored);
   if (!params.get("code") || params.get("state") !== pending.state) {
