@@ -8,11 +8,28 @@ cresce, il dimensionamento può essere rivisto. Nessuna risorsa AWS è stata cre
 
 - `STS GetCallerIdentity` riuscito: credenziali funzionanti per identificare un
   utente IAM. Non dimostra permessi di creazione delle risorse.
-- Policy della rete `restricted/enforced`: tra i servizi AWS è consentito soltanto
-  `sts.amazonaws.com`. Nessuna richiesta è partita verso gli altri endpoint.
-- Regione Milano abilitata, risorse presenti, concorrenza Lambda disponibile,
-  benefici residui e tariffe regionali: **ancora da verificare**.
-- Nessun `terraform plan` reale o `apply` AWS. `budget_reviewed` resta `false`.
+- Nel nuovo ambiente la policy locale è `unrestricted`. Lo stato del servizio
+  riporta ancora enforcement e credenziali `unknown`, ma le chiamate effettive
+  hanno verificato gli endpoint AWS necessari al preflight.
+- Milano è `ENABLED`. Inventario regionale paginato: nessuna tabella DynamoDB,
+  nessuna HTTP API, tre Lambda, un pool Cognito, tre gruppi log e nessuno scheduler.
+  Le risorse preesistenti non sono state modificate.
+- Piano account Free attivo e crediti residui verificati tramite
+  `GetAccountPlanState`; saldo e scadenza restano nel rapporto privato.
+  Free Tier segnala margine per Lambda e log; la stima sotto non lo sottrae.
+- Il provider OIDC GitHub esistente ha URL e audience corretti. La simulazione
+  IAM consente le principali operazioni di bootstrap e deploy; non dimostra
+  che ogni futura creazione riuscirà. Environment GitHub `aws-prototype` assente.
+- **Blocco Lambda:** quota regionale effettiva 10, tutte non riservate. Per tre
+  nuove riserve da uno occorrono almeno 103 esecuzioni non riservate prima del
+  deploy, perché AWS ne mantiene almeno 100. Service Quotas conferma quota 10
+  modificabile e nessuna richiesta precedente. Un tentativo a 103 con
+  `SupportCaseAllowed=false` è stato rifiutato: l'API richiede un valore superiore
+  alla quota standard di 1.000. Nessun caso di assistenza è stato aperto.
+- Preparato e ispezionato un **piano reale privato del solo bootstrap**: undici
+  creazioni, zero modifiche e zero eliminazioni; riusa il provider OIDC verificato.
+  Nessun `apply`, nessuna risorsa creata. Per questo piano è stato passato
+  `budget_reviewed=true` dopo la stima; il default e i workflow restano bloccati.
 - Cinque test Terraform con provider simulato: tre stack e due bootstrap.
   Validazioni e formattazione riuscite; nessun test crea risorse AWS.
 
@@ -68,13 +85,57 @@ Compilare una stima con tariffe correnti Milano, unità effettive e benefici res
 | SSM/KMS | Parametro Standard e operazioni di cifratura/decifratura; AWS-managed KMS non significa ogni operazione gratuita |
 | Altri costi | Eventuali trasferimenti, strumenti di fatturazione, GitHub Actions e hosting; cambio e imposte separati |
 
-**La stima numerica validata resta pendente finché la rete non permette questi
-controlli.** Dopo il primo collaudo verificare fatturazione e consumo con il
+### Tariffe regionali verificate e stima iniziale
+
+Il 15 ottobre 2026 le API AWS Price List hanno restituito queste tariffe per
+`EU (Milan)`, in USD, senza imposte o cambio. Le date di efficacia del catalogo
+sono agosto–ottobre 2026, luglio 2025 per KMS.
+
+| Voce | Tariffa utilizzata |
+| --- | --- |
+| DynamoDB Standard on-demand | 0,1485 USD/milione RRU; 0,74 USD/milione WRU |
+| DynamoDB storage | 0,29715 USD/GB-mese, senza sottrarre i primi 25 GB gratuiti |
+| Lambda x86 a consumo | 0,23 USD/milione richieste + 0,0000195172 USD/GB-secondo |
+| HTTP API | 1,17 USD/milione richieste |
+| Cognito Lite | 0,0055 USD/MAU, senza sottrarre inclusioni condivise |
+| S3 Standard | 0,024 USD/GB-mese; 0,0053 USD/1.000 PUT/LIST; 0,0004 USD/1.000 GET |
+| Log Standard | 0,60 USD/GB acquisito; 0,032 USD/GB-mese conservato |
+| KMS simmetrico | 0,03 USD/10.000 richieste; nessuna chiave gestita dal cliente |
+| Uscita Internet | 0,09 USD/GB, senza sottrarre la quota gratuita globale |
+| SSM Standard, throughput standard | Nessun costo aggiuntivo; entrambe le impostazioni dell'account verificate |
+
+| Ipotesi | Collaudo | Mese leggero |
+| --- | --- | --- |
+| Richieste HTTP API | 100 | 1.000 |
+| Lambda a 512 MB | 100 chiamate da 1 s + due worker da 30 s | 1.000 chiamate da 1 s + due worker da 30 s |
+| DynamoDB, incluse transazioni e GSI | 3.000 RRU + 1.000 WRU; 0,001 GB-mese | 30.000 RRU + 5.000 WRU; 0,01 GB-mese |
+| Cognito | Due MAU sintetici | Due MAU sintetici |
+| S3, inclusi stato/versioni/piano/bundle/foto | 0,05 GB-mese, 200 PUT/LIST, 1.000 GET | 0,1 GB-mese, 500 PUT/LIST, 5.000 GET |
+| Log acquisiti, conservazione un giorno | 0,001 GB | 0,01 GB |
+| KMS | 103 operazioni | 1.003 operazioni |
+| Trasferimento Internet | 0,02 GB | 0,05 GB |
+| **Totale arrotondato, prima di crediti e inclusioni** | **0,02 USD** | **0,06 USD** |
+
+Stima condizionata ai volumi indicati, non consumo misurato né tetto garantito.
+La durata media di un secondo è da collaudare: timeout ripetuti, più utenti,
+foto, richieste o deploy aumentano il costo. Il censimento resta sintetico e
+gli scheduler spenti. IAM/OIDC non comportano un canone; non sono previsti budget
+con azioni a pagamento. GitHub Actions usa runner standard della repository
+pubblica e il frontend riutilizzerebbe il progetto Sites esistente; nessun nuovo
+servizio di hosting o dominio viene acquistato.
+
+La stima rientra nell'obiettivo autorizzato; il blocco attuale è la concorrenza,
+non la rete. Prima di applicare il bootstrap, risolvere la quota e ricontrollare
+il piano. Non rimuovere le riserve da uno per aggirare il vincolo. L'apertura di
+un caso AWS Support richiede l'autorizzazione dell'utente a contattare il supporto;
+non è stata richiesta né eseguita una conversione dell'account a un piano Paid.
+
+Dopo il primo collaudo verificare fatturazione e consumo con il
 ritardo dichiarato dal servizio; un costo non ancora registrato non vale zero.
 Se la previsione supera il target concordato, presentare le voci prima di creare
 risorse. Non usare `budget_reviewed=true` solo per superare il blocco del piano.
 
-## Aggiornare la rete dell’ambiente
+## Configurazione di rete (blocco precedente risolto)
 
 In ChatGPT: **Settings → Codex Cloud → Environments → Edit** sull’ambiente del
 progetto. Lasciare attivi i package manager e aggiungere gli host seguenti in
@@ -103,7 +164,7 @@ scheduler.eu-south-1.amazonaws.com
 budgets.amazonaws.com
 ```
 
-La lista copre i servizi di controllo previsti, non tutti gli host che potranno
+La lista resta utile se si torna a una policy ristretta. Copre i servizi di controllo previsti, non tutti gli host che potranno
 essere generati. Aggiungere gli host effettivi di bucket S3, API distribuita e
 dominio Cognito quando noti; Terraform e il backend S3 possono usare host con il
 nome del bucket. L’allowlist non assegna permessi IAM e non crea risorse.
@@ -138,3 +199,8 @@ pianificata sulle risorse dedicate, preservando stato, audit e originali.
 - [Lambda: prezzi](https://aws.amazon.com/lambda/pricing/).
 - [HTTP API: prezzi](https://aws.amazon.com/api-gateway/pricing/).
 - [AWS Budgets: ritardi e limiti delle notifiche](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html).
+- [AWS Price List: interrogazione delle tariffe](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-price-list-query-api.html).
+- [Lambda: minimo di 100 esecuzioni non riservate](https://docs.aws.amazon.com/lambda/latest/dg/configuration-concurrency.html).
+- [Service Quotas: richiesta e apertura facoltativa del caso di assistenza](https://docs.aws.amazon.com/servicequotas/2019-06-24/apireference/API_RequestServiceQuotaIncrease.html).
+- [Piani Free e Paid e loro scadenza](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
+- [SSM Parameter Store: prezzi Standard](https://aws.amazon.com/systems-manager/pricing/).

@@ -162,6 +162,18 @@ def main():
 
     check("free_tier", "freetier", "us-east-1", free_tier, lambda r: r)
     check(
+        "account_plan",
+        "freetier",
+        "us-east-1",
+        lambda c: c.get_account_plan_state(),
+        lambda r: {
+            "plan_type": r.get("accountPlanType"),
+            "plan_status": r.get("accountPlanStatus"),
+            "remaining_credits": r.get("accountPlanRemainingCredits"),
+            "expires_at": str(r.get("accountPlanExpirationDate")),
+        },
+    )
+    check(
         "lambda_quota",
         "lambda",
         REGION,
@@ -174,6 +186,22 @@ def main():
             "function_count": r.get("AccountUsage", {}).get("FunctionCount"),
             "code_storage_bytes": r.get("AccountUsage", {}).get("TotalCodeSize"),
             "minimum_unreserved_for_reservations": 100,
+            # Tre funzioni nuove, con una esecuzione riservata ciascuna.
+            "required_new_reservations": 3,
+            "required_unreserved_before_deploy": 103,
+            "reservations_supported": (
+                r["AccountLimit"]["UnreservedConcurrentExecutions"] >= 103
+            ),
+        },
+    )
+    check(
+        "lambda_service_quota",
+        "service-quotas",
+        REGION,
+        lambda c: c.get_service_quota(ServiceCode="lambda", QuotaCode="L-B99A9384"),
+        lambda r: {
+            "value": r["Quota"]["Value"],
+            "adjustable": r["Quota"]["Adjustable"],
         },
     )
     check(
@@ -203,6 +231,12 @@ def main():
                 "full_inventory_verified": False,
             },
         )
+    blockers = []
+    lambda_quota = results["lambda_quota"]
+    if lambda_quota.get("state") != "verified_read_only":
+        blockers.append("lambda_concurrency_not_verified")
+    elif not lambda_quota["reservations_supported"]:
+        blockers.append("lambda_reserved_concurrency_unavailable")
     print(
         json.dumps(
             {
@@ -210,6 +244,7 @@ def main():
                 "region": REGION,
                 "resources_created": False,
                 "budget_verified": False,
+                "deployment_blockers": blockers,
                 "checks": results,
             },
             indent=2,

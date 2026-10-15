@@ -5,7 +5,9 @@ Lambda API e worker, HTTP API/MCP, Cognito, S3 privato, SSM, IAM e log. Schedule
 disattivati per default. `bootstrap/` prepara stato privato, OIDC GitHub,
 ruoli plan/deploy e permissions boundary dedicati.
 
-Non è stato eseguito alcun plan reale o apply AWS. I cinque test Terraform usano
+Il 15 ottobre è stato preparato e ispezionato un piano reale privato del solo
+bootstrap: undici creazioni, nessuna modifica o eliminazione, riuso del provider
+OIDC esistente. Nessun apply AWS è stato eseguito. I cinque test Terraform usano
 `mock_provider aws`; il loro apply è soltanto una simulazione.
 
 ```bash
@@ -39,5 +41,7 @@ con burst 10 e scheduler spenti. Vecchi bundle/piani scadono dopo sette giorni;
 lo stato Terraform corrente resta conservato.
 
 Il deploy è autorizzato entro il target di pochi centesimi per collaudo e uso
-leggero, ma attende verifiche reali di rete, permessi e tariffe. Vedi
+leggero. Rete, regione e tariffe sono ora verificate; la quota Lambda effettiva
+di 10 impedisce le tre riserve da uno (servono almeno 103 non riservate prima
+del deploy). Nessuna risorsa è stata creata. Vedi
 [il rapporto del primo deploy](../docs/primo-deploy-e-costi.md).
