@@ -34,6 +34,12 @@ run "isolated_bootstrap" {
     error_message = "Il boundary deve permettere le condizioni delle transazioni senza Scan."
   }
   assert {
+    condition = alltrue([for statement in jsondecode(aws_iam_role_policy.github["deploy"].policy).Statement : (
+      statement.Resource == "*" && statement.Condition.StringEquals["aws:RequestTag/Project"] == "scale-mobili-torino" && statement.Condition.StringEquals["aws:RequestTag/Environment"] == "prototype" && statement.Condition.StringEquals["aws:RequestedRegion"] == "eu-south-1"
+    ) if contains(statement.Action, "cognito-idp:CreateUserPool")])
+    error_message = "CreateUserPool non supporta ARN di risorsa: vincolare la creazione ai tag e alla regione del progetto."
+  }
+  assert {
     condition     = length(aws_s3_bucket_lifecycle_configuration.state.rule) == 2 && alltrue([for rule in aws_s3_bucket_lifecycle_configuration.state.rule : rule.filter[0].prefix == "scale-mobili/prototype/terraform.tfstate" ? length(rule.expiration) == 0 : rule.expiration[0].days == 7])
     error_message = "I vecchi bundle devono scadere senza eliminare lo stato Terraform corrente."
   }
