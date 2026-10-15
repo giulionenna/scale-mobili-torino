@@ -67,8 +67,8 @@ run "protected_backend" {
     error_message = "I limiti a consumo devono comprendere ogni GSI."
   }
   assert {
-    condition     = aws_cognito_user_pool.users.user_pool_tier == "LITE" && aws_cognito_user_pool_domain.users.managed_login_version == 1 && alltrue([for group in aws_cloudwatch_log_group.lambda : group.retention_in_days == 1]) && alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == -1 && function.logging_config[0].application_log_level == "WARN"])
-    error_message = "Lite, log brevi e concorrenza condivisa devono restare espliciti."
+    condition     = aws_cognito_user_pool.users.user_pool_tier == "ESSENTIALS" && aws_cognito_user_pool_domain.users.managed_login_version == 2 && aws_cognito_managed_login_branding.web.use_cognito_provided_values && aws_cognito_managed_login_branding.web.client_id == aws_cognito_user_pool_client.web.id && alltrue([for group in aws_cloudwatch_log_group.lambda : group.retention_in_days == 1]) && alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == -1 && function.logging_config[0].application_log_level == "WARN"])
+    error_message = "Managed login Essentials abilita l'audience MCP; log brevi e concorrenza condivisa restano espliciti."
   }
 }
 

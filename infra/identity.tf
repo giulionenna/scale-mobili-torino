@@ -1,6 +1,6 @@
 resource "aws_cognito_user_pool" "users" {
   name                     = "${var.prefix}-users"
-  user_pool_tier           = "LITE"
+  user_pool_tier           = "ESSENTIALS"
   auto_verified_attributes = ["email"]
   username_attributes      = ["email"]
   deletion_protection      = "ACTIVE"
@@ -24,7 +24,7 @@ resource "aws_cognito_user_pool" "users" {
 resource "aws_cognito_user_pool_domain" "users" {
   domain                = "${var.prefix}-${data.aws_caller_identity.current.account_id}"
   user_pool_id          = aws_cognito_user_pool.users.id
-  managed_login_version = 1
+  managed_login_version = 2
 }
 
 resource "aws_cognito_resource_server" "platform" {
@@ -69,6 +69,13 @@ resource "aws_cognito_user_group" "moderators" {
   name         = "moderators"
   user_pool_id = aws_cognito_user_pool.users.id
   description  = "Revisione server di impianti, foto e interpretazioni delle fonti"
+}
+
+# Il binding OAuth resource -> aud richiesto da MCP usa managed login.
+resource "aws_cognito_managed_login_branding" "web" {
+  client_id                   = aws_cognito_user_pool_client.web.id
+  user_pool_id                = aws_cognito_user_pool.users.id
+  use_cognito_provided_values = true
 }
 
 resource "aws_ssm_parameter" "cursor" {
