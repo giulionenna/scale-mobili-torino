@@ -32,6 +32,10 @@ run "isolated_bootstrap" {
     condition     = !contains(jsondecode(aws_iam_policy.runtime_boundary.policy).Statement[0].Action, "dynamodb:Scan")
     error_message = "Il boundary dei runtime non deve concedere Scan."
   }
+  assert {
+    condition     = length(aws_s3_bucket_lifecycle_configuration.state.rule) == 2 && alltrue([for rule in aws_s3_bucket_lifecycle_configuration.state.rule : rule.filter[0].prefix == "scale-mobili/prototype/terraform.tfstate" ? length(rule.expiration) == 0 : rule.expiration[0].days == 7])
+    error_message = "I vecchi bundle devono scadere senza eliminare lo stato Terraform corrente."
+  }
 }
 
 run "bootstrap_budget_guard" {

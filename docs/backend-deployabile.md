@@ -157,23 +157,24 @@ non si attribuisce loro un esito prima dell'esecuzione sui runner.
 
 Esiti nell'ambiente cloud: 64 test Python passati; controllo e formattazione Ruff
 riusciti; API HTTP con DynamoDB/S3 emulati e riavvio API riusciti; bundle isolato
-importato e invocato ripetutamente; validazioni Terraform e quattro test simulati
+importato e invocato ripetutamente; validazioni Terraform e cinque test simulati
 tra stack e bootstrap riusciti. Frontend: check senza errori/warning e build
 riusciti dopo l'aggiornamento dello scope OAuth. Restano due deprecazioni upstream
 nei test Python (TestClient/httpx e ciclo eventi Mangum), senza errori funzionali.
 
-## Deploy successivo, da autorizzare dopo la verifica economica
+## Primo deploy autorizzato, subordinato alla verifica economica
 
 Lo stack applicativo crea due tabelle/tre GSI, due bucket privati, Cognito,
-parametro SSM SecureString, tre Lambda, HTTP API, log con retention di sette giorni
+parametro SSM SecureString, tre Lambda, HTTP API, log WARN con retention predefinita di un giorno
 e scheduler opzionali. API e MCP condividono HTTP API e verificano JWT nel backend.
 Il runtime non ha permessi Scan. Il bootstrap prepara stato S3 privato/versionato,
 provider GitHub OIDC verificato o nuovo, ruoli plan/deploy separati e boundary dei
 ruoli applicativi. Non riusa ruoli o stato di altri progetti.
 
 Prima dell'attivazione verificare regione Milano, permessi, quote residue e tutte
-le voci: DynamoDB, Lambda, API, Cognito, S3, log, SSM/KMS, stato e piani. 7 RCU/7 WCU
-sono l'allocazione proposta, non la prova di gratuità. La concorrenza Lambda riservata
+le voci: DynamoDB, Lambda, API, Cognito, S3, log, SSM/KMS, stato e piani. La modalità predefinita di DynamoDB è a consumo con limiti espliciti su tabelle
+e indici. La modalità provisioned opzionale alloca 7 RCU/7 WCU e richiede
+la verifica della copertura residua; nessuna delle due garantisce costo zero. La concorrenza Lambda riservata
 richiede quota disponibile nell'account. `budget_reviewed=false` blocca il piano.
 
 1. Revisionare `infra/bootstrap`, salvare il suo stato fuori dal repository e
@@ -213,3 +214,7 @@ di prevenzione abuso per una release pubblica.
 
 Per la release serviranno prove AWS e client reali, misure di latenza/consumo,
 strategie per volumi superiori ed export/ripristino amministrativo. Nessuna di queste verifiche viene dichiarata già eseguita.
+
+
+Il target economico aggiornato e il blocco di rete osservato il 15 ottobre sono
+descritti nel [rapporto del primo deploy](primo-deploy-e-costi.md).

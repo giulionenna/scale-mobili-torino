@@ -1,6 +1,9 @@
 # Verifica AWS iniziale
 
-14 ottobre 2026. Nessuna risorsa AWS creata. Nessun deploy o bootstrap eseguito.
+14 ottobre 2026, con aggiornamento del 15 ottobre. Nessuna risorsa AWS creata.
+Nessun deploy o bootstrap eseguito. Il target aggiornato e la configurazione a
+consumo sono nel [rapporto del primo deploy](primo-deploy-e-costi.md); le sezioni
+seguenti conservano anche il confronto iniziale con provisioned.
 
 ## Esiti reali e limiti
 

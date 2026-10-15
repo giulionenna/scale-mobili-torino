@@ -15,6 +15,7 @@ Piattaforma civica indipendente per scale mobili e ascensori della metropolitana
 7. [Interfaccia, segnalazioni e proposte aggiornate](docs/specifiche-interfaccia.md)
 8. [Backend: avvio, contratti, collaudo e deploy successivo](docs/backend-deployabile.md)
 9. [Frontend collegato alle API: modalità e collaudo](docs/frontend-collegato.md)
+10. [Primo deploy AWS e controllo dei costi](docs/primo-deploy-e-costi.md)
 
 Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC costituiscono l'impostazione proposta. Le prove devono verificare concretamente funzionamento e consumo. Regione proposta: Milano, `eu-south-1`.
 
@@ -50,7 +51,7 @@ vedi il [runbook del frontend collegato](docs/frontend-collegato.md).
 - Originali GTT conservati con provenienza e hash; acquisizioni registrate anche senza variazioni.
 - Statistiche con copertura e metodo; nessuna disponibilità inventata su periodi non osservati.
 - API e strumenti MCP con la stessa logica; scritture autenticate e protette da abuso.
-- Budget iniziale zero: verificare quote e voci residue prima di attivare servizi AWS.
+- Target concordato: pochi centesimi per il collaudo e per l’uso leggero; verificare tariffe e benefici prima di attivare AWS.
 - Sviluppo e distribuzione cloud; nessuna installazione del progetto richiesta sul PC dell'utente.
 
 ## Portare il progetto in Codex Cloud

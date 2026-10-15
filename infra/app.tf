@@ -1,8 +1,8 @@
 locals {
   functions = {
-    api       = { handler = "scale_mobili.app.handler", timeout = 30 }
-    aggregate = { handler = "scale_mobili.workers.aggregate_handler", timeout = 60 }
-    collector = { handler = "scale_mobili.workers.collector_handler", timeout = 120 }
+    api       = { handler = "scale_mobili.app.handler", timeout = 15 }
+    aggregate = { handler = "scale_mobili.workers.aggregate_handler", timeout = 30 }
+    collector = { handler = "scale_mobili.workers.collector_handler", timeout = 30 }
   }
   runtime_environment = {
     SMT_MODE                    = "aws"
@@ -24,7 +24,7 @@ locals {
 resource "aws_cloudwatch_log_group" "lambda" {
   for_each          = local.functions
   name              = "/aws/lambda/${var.prefix}-${each.key}"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_days
 }
 
 resource "aws_iam_role" "lambda" {
@@ -72,6 +72,12 @@ resource "aws_lambda_function" "backend" {
   memory_size                    = 512
   timeout                        = each.value.timeout
   reserved_concurrent_executions = var.reserved_concurrency
+  logging_config {
+    log_format            = "JSON"
+    application_log_level = "WARN"
+    system_log_level      = "WARN"
+    log_group             = aws_cloudwatch_log_group.lambda[each.key].name
+  }
   environment {
     variables = merge(local.runtime_environment, each.key == "collector" ? { SMT_WRITE_LIMIT_PER_MINUTE = "100" } : {})
   }
@@ -117,8 +123,8 @@ resource "aws_apigatewayv2_stage" "backend" {
   name        = "$default"
   auto_deploy = true
   default_route_settings {
-    throttling_rate_limit  = 10
-    throttling_burst_limit = 20
+    throttling_rate_limit  = var.api_rate_limit
+    throttling_burst_limit = var.api_burst_limit
   }
 }
 

@@ -1,5 +1,6 @@
 resource "aws_cognito_user_pool" "users" {
   name                     = "${var.prefix}-users"
+  user_pool_tier           = "LITE"
   auto_verified_attributes = ["email"]
   username_attributes      = ["email"]
   deletion_protection      = "ACTIVE"
@@ -21,8 +22,9 @@ resource "aws_cognito_user_pool" "users" {
 }
 
 resource "aws_cognito_user_pool_domain" "users" {
-  domain       = "${var.prefix}-${data.aws_caller_identity.current.account_id}"
-  user_pool_id = aws_cognito_user_pool.users.id
+  domain                = "${var.prefix}-${data.aws_caller_identity.current.account_id}"
+  user_pool_id          = aws_cognito_user_pool.users.id
+  managed_login_version = 1
 }
 
 resource "aws_cognito_resource_server" "platform" {

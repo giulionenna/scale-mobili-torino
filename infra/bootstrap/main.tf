@@ -104,6 +104,26 @@ resource "aws_s3_bucket_policy" "state" {
   }] })
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+  rule {
+    id     = "expire-old-deployment-plans"
+    status = "Enabled"
+    filter { prefix = "scale-mobili/prototype/plans/" }
+    expiration { days = 7 }
+    noncurrent_version_expiration { noncurrent_days = 7 }
+    abort_incomplete_multipart_upload { days_after_initiation = 1 }
+  }
+  # Lo stato corrente non scade. Restano 30 giorni delle versioni precedenti.
+  rule {
+    id     = "retain-previous-state-versions"
+    status = "Enabled"
+    filter { prefix = "scale-mobili/prototype/terraform.tfstate" }
+    noncurrent_version_expiration { noncurrent_days = 30 }
+  }
+  depends_on = [aws_s3_bucket_versioning.state]
+}
+
 resource "aws_iam_policy" "runtime_boundary" {
   name = "${var.prefix}-runtime-boundary"
   policy = jsonencode({ Version = "2012-10-17", Statement = [

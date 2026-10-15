@@ -32,7 +32,7 @@ Preparare una stima sia per il lotto di prova (circa 100 letture, 10 segnalazion
 
 **Consegna:** rapporto di fattibilità, endpoint necessari, permessi mancanti, dimensionamento iniziale e tabella dei costi con ipotesi e fonti.
 
-**Criterio di completamento:** sappiamo dove e con quali permessi distribuire la prova e quali voci sono coperte o possono essere fatturate. Il budget resta zero: nessuna attivazione con costi non concordati. Se la verifica economica resta incompleta, il codice continua a essere preparato e il deploy resta pendente.
+**Criterio di completamento:** sappiamo dove e con quali permessi distribuire la prova e quali voci sono coperte o possono essere fatturate. Il target aggiornato è di pochi centesimi per collaudo e uso leggero: nessuna attivazione con costi superiori non concordati. Se la verifica economica resta incompleta, il codice continua a essere preparato e il deploy resta pendente.
 
 ## 2. Preparare il progetto e verificare gli adattatori
 

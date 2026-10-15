@@ -128,11 +128,54 @@ def main():
             args["nextToken"] = page["nextToken"]
         return {
             "offers_reported": len(offers),
+            "relevant_offers": [
+                {
+                    field: item.get(field)
+                    for field in (
+                        "service",
+                        "usageType",
+                        "operation",
+                        "region",
+                        "limit",
+                        "actualUsageAmount",
+                        "forecastedUsageAmount",
+                        "unit",
+                        "freeTierType",
+                    )
+                }
+                for item in offers
+                if any(
+                    service in item.get("service", "").lower()
+                    for service in (
+                        "dynamo",
+                        "cognito",
+                        "lambda",
+                        "s3",
+                        "cloudwatch",
+                        "gateway",
+                    )
+                )
+            ],
             "coverage_verified": False,
             "note": "Le offerte vanno confrontate con consumi, crediti e payer account.",
         }
 
     check("free_tier", "freetier", "us-east-1", free_tier, lambda r: r)
+    check(
+        "lambda_quota",
+        "lambda",
+        REGION,
+        lambda c: c.get_account_settings(),
+        lambda r: {
+            "concurrent_executions": r["AccountLimit"]["ConcurrentExecutions"],
+            "unreserved_concurrency": r["AccountLimit"][
+                "UnreservedConcurrentExecutions"
+            ],
+            "function_count": r.get("AccountUsage", {}).get("FunctionCount"),
+            "code_storage_bytes": r.get("AccountUsage", {}).get("TotalCodeSize"),
+            "minimum_unreserved_for_reservations": 100,
+        },
+    )
     check(
         "pricing_access",
         "pricing",

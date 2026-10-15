@@ -5,7 +5,7 @@ Lambda API e worker, HTTP API/MCP, Cognito, S3 privato, SSM, IAM e log. Schedule
 disattivati per default. `bootstrap/` prepara stato privato, OIDC GitHub,
 ruoli plan/deploy e permissions boundary dedicati.
 
-Non è stato eseguito alcun plan reale o apply AWS. I quattro test Terraform usano
+Non è stato eseguito alcun plan reale o apply AWS. I cinque test Terraform usano
 `mock_provider aws`; il loro apply è soltanto una simulazione.
 
 ```bash
@@ -26,9 +26,18 @@ controlla le rotazioni deliberate. I riferimenti firmati già distribuiti richie
 una strategia di migrazione prima di ruotare la chiave.
 
 Il flag `budget_reviewed` è false per default e blocca il piano. L'allocazione
-proposta complessiva è 7 RCU e 7 WCU; non garantisce quota residua o costo zero.
+predefinita è a consumo (`PAY_PER_REQUEST`), con massimo 100 unità di lettura e 20 di scrittura al secondo per tabella/GSI. La modalità opzionale provisioned alloca 7 RCU e 7 WCU complessive e richiede la verifica del Free Tier residuo. I limiti non sono un tetto alla fattura.
 Stato, piani e manifest restano privati. I workflow di plan e apply sono manuali,
 con OIDC, environment GitHub e verifica degli hash del commit revisionato.
 
 Procedura completa, variabili, prove e limiti nel
 [runbook del backend](../docs/backend-deployabile.md).
+
+Configurazione di costo ridotto: Cognito Lite/Hosted UI classica, una esecuzione
+concorrente per funzione, log WARN con retention di un giorno, API 2 richieste/s
+con burst 10 e scheduler spenti. Vecchi bundle/piani scadono dopo sette giorni;
+lo stato Terraform corrente resta conservato.
+
+Il deploy è autorizzato entro il target di pochi centesimi per collaudo e uso
+leggero, ma attende verifiche reali di rete, permessi e tariffe. Vedi
+[il rapporto del primo deploy](../docs/primo-deploy-e-costi.md).

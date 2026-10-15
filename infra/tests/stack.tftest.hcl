@@ -59,8 +59,25 @@ run "protected_backend" {
     error_message = "Client pubblico con authorization code e PKCE."
   }
   assert {
-    condition     = output.proposed_capacity.total_rcu == 7 && output.proposed_capacity.total_wcu == 7
-    error_message = "Il dimensionamento deve includere tutti i GSI."
+    condition     = output.proposed_capacity.total_rcu == 0 && output.proposed_capacity.total_wcu == 0 && alltrue([for table in aws_dynamodb_table.prototype : table.billing_mode == "PAY_PER_REQUEST" && table.on_demand_throughput[0].max_read_request_units == 100 && table.on_demand_throughput[0].max_write_request_units == 20])
+    error_message = "La prova deve partire a consumo con limiti espliciti sulle tabelle."
+  }
+  assert {
+    condition     = alltrue(flatten([for table in aws_dynamodb_table.prototype : [for index in table.global_secondary_index : index.on_demand_throughput[0].max_read_request_units == 100 && index.on_demand_throughput[0].max_write_request_units == 20]]))
+    error_message = "I limiti a consumo devono comprendere ogni GSI."
+  }
+  assert {
+    condition     = aws_cognito_user_pool.users.user_pool_tier == "LITE" && aws_cognito_user_pool_domain.users.managed_login_version == 1 && alltrue([for group in aws_cloudwatch_log_group.lambda : group.retention_in_days == 1]) && alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == 1 && function.logging_config[0].application_log_level == "WARN"])
+    error_message = "Lite, log brevi e concorrenza limitata devono restare espliciti."
+  }
+}
+
+run "optional_verified_provisioned" {
+  command = plan
+  variables { dynamodb_billing_mode = "PROVISIONED" }
+  assert {
+    condition     = output.proposed_capacity.total_rcu == 7 && output.proposed_capacity.total_wcu == 7 && alltrue([for table in aws_dynamodb_table.prototype : length(table.on_demand_throughput) == 0 && table.read_capacity == 2 && table.write_capacity == 2])
+    error_message = "La modalità provisioned opzionale deve contare entrambe le tabelle e tutti i GSI."
   }
 }
 

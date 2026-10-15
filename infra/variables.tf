@@ -18,7 +18,7 @@ variable "budget_reviewed" {
   description = "Impostare true solo dopo la verifica documentata di tutte le voci AWS."
   validation {
     condition     = var.budget_reviewed
-    error_message = "La prova AWS richiede prima la verifica di quote residue e budget zero."
+    error_message = "La prova AWS richiede prima la verifica di tariffe, benefici residui e budget concordato."
   }
 }
 
@@ -86,9 +86,64 @@ variable "runtime_permissions_boundary_arn" {
 
 variable "reserved_concurrency" {
   type    = number
-  default = 2
+  default = 1
   validation {
     condition     = var.reserved_concurrency >= 1 && var.reserved_concurrency <= 5
     error_message = "Il prototipo consente da 1 a 5 invocazioni concorrenti."
+  }
+}
+
+variable "dynamodb_billing_mode" {
+  type        = string
+  default     = "PAY_PER_REQUEST"
+  description = "A consumo per la prova; PROVISIONED solo dopo verifica del Free Tier residuo."
+  validation {
+    condition     = contains(["PAY_PER_REQUEST", "PROVISIONED"], var.dynamodb_billing_mode)
+    error_message = "Modalità DynamoDB non valida."
+  }
+}
+
+variable "dynamodb_max_read_units" {
+  type    = number
+  default = 100
+  validation {
+    condition     = var.dynamodb_max_read_units >= 1 && var.dynamodb_max_read_units <= 100 && floor(var.dynamodb_max_read_units) == var.dynamodb_max_read_units
+    error_message = "Limite intero di 1–100 unità di lettura al secondo per tabella/indice."
+  }
+}
+
+variable "dynamodb_max_write_units" {
+  type    = number
+  default = 20
+  validation {
+    condition     = var.dynamodb_max_write_units >= 1 && var.dynamodb_max_write_units <= 20 && floor(var.dynamodb_max_write_units) == var.dynamodb_max_write_units
+    error_message = "Limite intero di 1–20 unità di scrittura al secondo per tabella/indice."
+  }
+}
+
+variable "api_rate_limit" {
+  type    = number
+  default = 2
+  validation {
+    condition     = var.api_rate_limit >= 1 && var.api_rate_limit <= 10
+    error_message = "La prova consente 1–10 richieste API al secondo."
+  }
+}
+
+variable "api_burst_limit" {
+  type    = number
+  default = 10
+  validation {
+    condition     = var.api_burst_limit >= 5 && var.api_burst_limit <= 20 && floor(var.api_burst_limit) == var.api_burst_limit
+    error_message = "Burst API intero di 5–20 richieste."
+  }
+}
+
+variable "log_retention_days" {
+  type    = number
+  default = 1
+  validation {
+    condition     = contains([1, 3, 5, 7], var.log_retention_days)
+    error_message = "Retention di 1, 3, 5 o 7 giorni per la prova."
   }
 }
