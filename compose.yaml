@@ -1,0 +1,24 @@
+# Emulatori di sviluppo nell'ambiente cloud, non risorse AWS.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.6.1
+    user: root
+    command: -jar DynamoDBLocal.jar -sharedDb -disableTelemetry -dbPath /home/dynamodblocal/data
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+  s3:
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: local-only
+      MINIO_ROOT_PASSWORD: local-only
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - s3-data:/data
+volumes:
+  dynamodb-data:
+  s3-data:

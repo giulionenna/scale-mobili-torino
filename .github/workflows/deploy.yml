@@ -1,0 +1,72 @@
+name: Apply AWS manuale da piano revisionato
+
+on:
+  workflow_dispatch:
+    inputs:
+      budget_reviewed:
+        description: Budget, regione e piano privato sono stati verificati
+        required: true
+        type: boolean
+        default: false
+      plan_run_id:
+        description: Run ID del workflow Piano AWS dello stesso commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aws-prototype-terraform
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/main' && inputs.budget_reviewed
+    environment: aws-prototype
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_cursor_secret: ${{ secrets.SMT_CURSOR_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.14.6'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: eu-south-1
+          role-session-name: scale-mobili-deploy
+      - name: Scarica e verifica il piano privato esatto
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+        run: |
+          test -n "$STATE_BUCKET"
+          [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]]
+          test -n "$TF_VAR_cursor_secret"
+          mkdir -p dist
+          plan_prefix="s3://$STATE_BUCKET/scale-mobili/prototype/plans/$GITHUB_SHA/$PLAN_RUN_ID"
+          aws s3 cp "$plan_prefix/prototype.tfplan" "$RUNNER_TEMP/prototype.tfplan" --only-show-errors
+          aws s3 cp "$plan_prefix/backend-lambda.zip" dist/backend-lambda.zip --only-show-errors
+          aws s3 cp "$plan_prefix/manifest.json" "$RUNNER_TEMP/manifest.json" --only-show-errors
+          python scripts/deployment_manifest.py verify --commit "$GITHUB_SHA" \
+            --plan "$RUNNER_TEMP/prototype.tfplan" --bundle dist/backend-lambda.zip \
+            --manifest "$RUNNER_TEMP/manifest.json"
+          terraform -chdir=infra init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=scale-mobili/prototype/terraform.tfstate" \
+            -backend-config="region=eu-south-1" -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true" > "$RUNNER_TEMP/terraform-init.log" 2>&1
+      - name: Applica soltanto il piano revisionato
+        run: |
+          terraform -chdir=infra apply -input=false "$RUNNER_TEMP/prototype.tfplan" \
+            > "$RUNNER_TEMP/terraform-apply.log" 2>&1
+          echo "Apply completato sul commit $GITHUB_SHA. Verificare separatamente login, API e MCP reali." >> "$GITHUB_STEP_SUMMARY"
+      - name: Rimuovi piano, manifest e log temporanei
+        if: always()
+        run: rm -f "$RUNNER_TEMP/prototype.tfplan" "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/terraform-init.log" "$RUNNER_TEMP/terraform-apply.log"

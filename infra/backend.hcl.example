@@ -1,0 +1,7 @@
+# Copiare in private-data/backend.hcl dopo il bootstrap dedicato.
+# Il bucket deve esistere; non viene creato da questo modulo.
+bucket       = "BUCKET-PRIVATO-DEDICATO"
+key          = "scale-mobili/prototype/terraform.tfstate"
+region       = "eu-south-1"
+encrypt      = true
+use_lockfile = true

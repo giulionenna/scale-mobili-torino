@@ -38,7 +38,7 @@ Il confronto con giulionenna/mcp-serverless-kit serve a riprendere OIDC, Terrafo
 
 ## Cloud e budget
 
-Il budget iniziale richiesto è zero. Prima di attivare la prova AWS, verificare account, quote residue, regione e stima di tutte le voci; se emergono costi, presentarli e concordare il passaggio con l'utente. La disponibilità di una repository non costituisce accesso amministrativo AWS.
+Il 15 ottobre 2026 l’utente ha autorizzato il deploy con un obiettivo di pochi centesimi per il primo collaudo e per l’uso successivo a basso traffico; se il servizio cresce, i limiti si possono rivalutare. Prima di attivare la prova AWS, verificare account, benefici residui, regione e stima di tutte le voci; se la previsione supera questo obiettivo, presentare le voci e concordare il passaggio con l’utente. Il traffico non ha un tetto di spesa rigido: throttling e avvisi riducono il rischio ma non lo garantiscono. La disponibilità di una repository non costituisce accesso amministrativo AWS.
 
 Preparare Terraform e workflow di deploy manuali, senza attivazione automatica da push o pull request. Usare GitHub Actions OIDC e credenziali temporanee; mantenere stato e piani Terraform privati. Non inserire credenziali, token, dati personali, foto private o backup nella repository e nei log.
 

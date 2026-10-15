@@ -2,6 +2,12 @@
 
 Proposta aggiornata il 14 ottobre 2026. **DynamoDB scelto dall'utente**; gli altri componenti restano la proposta iniziale. Stato di partenza del progetto: documentazione e progettazione; codice applicativo e nuova infrastruttura AWS ancora da realizzare. La prova descritta qui è da realizzare; nessun risultato è già misurato.
 
+Aggiornamento backend 0.2: codice, API/MCP, foto/proposte moderate, fonti, statistiche
+e Terraform del prototipo sono ora preparati e collaudati con servizi emulati.
+Bootstrap e deploy sono manuali; nessuna risorsa AWS è stata creata. Stato corrente,
+comandi ed evidenze nel [runbook del backend](backend-deployabile.md). Le verifiche
+AWS reali descritte in questo documento rimangono da eseguire.
+
 ## Decisione proposta
 
 Adottare una piattaforma AWS con frontend SvelteKit statico, backend Python su Lambda, API HTTP e MCP che condividono la logica applicativa. Usare **DynamoDB Standard**, con capacità provisioned iniziale da dimensionare entro le quote disponibili, e Terraform/GitHub Actions con OIDC per la distribuzione. La prova convalida chiavi, indici, concorrenza e consumo di DynamoDB.
@@ -93,6 +99,8 @@ Le statistiche restituiscono dati non disponibili e una motivazione se la copert
 Usare un backend Python con FastAPI per l'API e l'SDK MCP ufficiale per il protocollo. L'adattatore per Lambda, il ciclo di vita del server MCP e le versioni delle dipendenze sono elementi da verificare nella prova. Fissare versioni stabili compatibili con i client; evitare dipendenze dal ramo di sviluppo degli SDK.
 
 Per i primi strumenti usare richieste brevi e risposte JSON su trasporto Streamable HTTP stateless. Verificare anche handshake, notifiche e metodi previsti dalla versione del protocollo scelta. Una chiamata JSON riuscita con un client di test non basta a dichiarare compatibilità con ChatGPT.
+
+Primo incremento verificato nel cloud il 14 ottobre 2026: SDK MCP 1.30.0 e Mangum 0.22.0, handshake/notifiche e chiamate su HTTP loopback. Il manager HTTP dell'SDK può essere avviato una sola volta per istanza: l'handler prepara una nuova app MCP per invocazione, condividendo configurazione e archivio. Le invocazioni ripetute sono provate con eventi Lambda simulati; latenza e funzionamento su Lambda AWS e ChatGPT restano da misurare. Dettagli e limiti in [sviluppo e verifiche](sviluppo-e-verifiche.md).
 
 Le letture pubbliche mostrano solo evidenze pubblicabili. Le scritture richiedono un utente autenticato, scope applicativo, autorizzazione sull'operazione e limiti antiabuso. L'API attribuisce l'autore dal token: il client non può scegliere un altro autore. Le operazioni di moderazione verificano il ruolo sul server.
 

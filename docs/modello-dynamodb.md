@@ -132,3 +132,40 @@ Misurare capacità consumata per tabella/indice, dimensioni e throttling. Anche 
 8. Report del consumo comprende entrambe le tabelle e tutti e tre gli indici, oltre agli altri servizi AWS.
 
 La prova convalida queste scelte prima di creare il censimento reale. Numero di indici, proiezioni e capacità possono essere corretti sui risultati, mantenendo DynamoDB come database scelto.
+
+## Estensioni implementate nel prototipo backend 0.2
+
+Il prefisso `ESC#` rimane stabile anche per gli ascensori: `kind` distingue il tipo
+senza rinominare identificativi o perdere riferimenti. Restano due tabelle e tre
+GSI, con proiezioni `KEYS_ONLY`, nessun LSI e nessun permesso Scan nel runtime.
+
+| Documento aggiuntivo | PK / SK | Accesso |
+| --- | --- | --- |
+| Foto canonica anche prima dell'approvazione del censimento | `PHOTO#id` / `META` | GetItem; ownership, versione, stato e parent sul record originale |
+| Directory delle fonti | `CATALOG#SOURCES` / `SOURCE#id` | Query; riferimenti a `SOURCE#id` / `META` |
+| Stream di osservazioni | `FEED#REPORTS` / `EVENT#recorded_at#id` | Query inversa con cursore firmato; immagine solo se il record foto corrente è approvato |
+| Alias di un dispositivo | `ALIAS#canonical` / `DEVICE#alias` | Query primaria; metadata originali con `alias_of`, senza cancellare eventi |
+| Snapshot riservata globale | `STATS#global` / `CURRENT` | GetItem; metodo, tempi, copertura, versione delle evidenze |
+| Invalidazione globale | `WORK#AGGREGATES` / `GLOBAL` | Versione incrementata nella transazione di scrittura; completamento condizionato |
+| Limite di scrittura | `RATE#hash_actor` / `minute` | Aggiornamento condizionato; finestra server, TTL soltanto per pulizia |
+
+La chiave globale della foto aggiorna la proposta precedente `ESC#id`/`PHOTO#id`:
+serve per l'upload prima che un impianto proposto esista nel censimento. I record
+contengono parent, autore interno, versione e puntatori S3 privati. La lettura
+pubblica è puntuale per ID, oppure referenziata dallo stream dopo approvazione;
+non si usa Scan per cercare fotografie.
+
+Le altre nuove partizioni sono limitate al volume dichiarato del prototipo. Il
+ricalcolo avviene nel worker AWS, tramite Query delle evidenze, e non nelle letture
+pubbliche delle statistiche. La prima quota pubblica può usare Query del piccolo
+censimento e letture degli stati correnti, con copertura e coerenza eventuale
+esplicite. In sviluppo le statistiche riservate vengono ricalcolate su richiesta.
+
+La fusione aggiorna i metadata dei duplicati come alias e unifica gli eventi nelle
+letture e nelle proiezioni. Correzioni della stazione preservano gli ID e lo storico
+con l'associazione registrata all'epoca. Un cursore storico è vincolato anche alla
+versione del censimento; non costituisce una snapshot atomica. Le code GSI e quelle
+per autore rileggono il record corrente prima di autorizzare o restituire dati.
+
+Le verifiche usano memoria, Moto e servizi HTTP emulati. Coerenza, capacità e
+throttling di DynamoDB reale restano da verificare dopo il deploy autorizzato.
