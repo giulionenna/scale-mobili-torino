@@ -56,7 +56,7 @@ npm run dev -- --port 5173 --strictPort
 Vite inoltra `/api` e `/health` al backend. I due server vengono eseguiti nello
 stesso ambiente; gli indirizzi localhost non sono URL pubblici accessibili dal PC.
 Per pubblicare servirà il deploy e la verifica economica. La build produce file
-statici; `/callback` e `/impianto` sono pagine prerenderizzate.
+statici; `/auth/cognito` e `/impianto` sono pagine prerenderizzate.
 
 Con i server avviati, il collaudo browser verificato usa Chromium del runtime:
 

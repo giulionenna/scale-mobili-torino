@@ -38,7 +38,7 @@ def jwt_environment(monkeypatch):
         "sub": "test-user",
         "token_use": "access",
         "client_id": "test-client",
-        "scope": "openid scale-mobili/reports:write",
+        "scope": "openid https://prototype.example/mcp/reports:write",
     }
     return settings, key, claims
 
@@ -97,3 +97,13 @@ def test_missing_statistics_scope_not_equivalent_to_login(jwt_environment):
     with pytest.raises(DomainError) as caught:
         PlatformService.require_scope(actor, "stats:read")
     assert caught.value.status_code == 403
+
+
+def test_scopes_from_another_resource_do_not_grant_access(jwt_environment):
+    settings, key, claims = jwt_environment
+    claims["scope"] = (
+        "openid https://other.example/mcp/reports:write "
+        "scale-mobili/reports:write https://prototype.example/mcp/stats:read"
+    )
+    actor = authenticate("Bearer " + jwt.encode(claims, key, algorithm="RS256"), settings)
+    assert actor.scopes == frozenset({"stats:read"})

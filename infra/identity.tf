@@ -28,7 +28,7 @@ resource "aws_cognito_user_pool_domain" "users" {
 }
 
 resource "aws_cognito_resource_server" "platform" {
-  identifier   = "scale-mobili"
+  identifier   = "${aws_apigatewayv2_api.backend.api_endpoint}/mcp"
   name         = "Scale Mobili Torino"
   user_pool_id = aws_cognito_user_pool.users.id
   scope {
@@ -39,6 +39,7 @@ resource "aws_cognito_resource_server" "platform" {
     scope_name        = "stats:read"
     scope_description = "Confronto delle fonti e statistiche riservate"
   }
+  lifecycle { create_before_destroy = true }
 }
 
 resource "aws_cognito_user_pool_client" "web" {
@@ -47,9 +48,9 @@ resource "aws_cognito_user_pool_client" "web" {
   generate_secret                      = false
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["openid", "email", "scale-mobili/reports:write", "scale-mobili/stats:read"]
+  allowed_oauth_scopes                 = ["openid", "email", "${aws_cognito_resource_server.platform.identifier}/reports:write", "${aws_cognito_resource_server.platform.identifier}/stats:read"]
   supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = distinct(concat(["${var.frontend_url}/callback"], var.callback_urls))
+  callback_urls                        = distinct(concat(["${var.frontend_url}/auth/cognito"], var.callback_urls))
   logout_urls                          = [var.frontend_url]
   explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH"]
   access_token_validity                = 15

@@ -5,6 +5,15 @@ import jwt
 from scale_mobili.domain import Actor, DomainError
 
 
+def oauth_scope_prefix(settings):
+    return settings.public_url.rstrip("/") + "/mcp/"
+
+
+def oauth_scopes(settings):
+    prefix = oauth_scope_prefix(settings)
+    return [prefix + "reports:write", prefix + "stats:read"]
+
+
 @lru_cache
 def jwks_client(issuer):
     return jwt.PyJWKClient(f"{issuer}/.well-known/jwks.json", timeout=5, cache_keys=True)
@@ -44,10 +53,9 @@ def authenticate(header, settings, *, require_resource=False) -> Actor:
         # corrispondere alla risorsa; per MCP il binding aud è obbligatorio.
         if "aud" in claims and claims["aud"] != f"{settings.public_url.rstrip('/')}/mcp":
             raise ValueError("Audience non valida")
+        prefix = oauth_scope_prefix(settings)
         scopes = frozenset(
-            s.removeprefix("scale-mobili/")
-            for s in claims.get("scope", "").split()
-            if s.startswith("scale-mobili/")
+            s.removeprefix(prefix) for s in claims.get("scope", "").split() if s.startswith(prefix)
         )
         return Actor(
             id=claims["sub"],
@@ -62,5 +70,7 @@ def challenge(settings):
     return (
         'Bearer resource_metadata="'
         + settings.public_url.rstrip("/")
-        + '/.well-known/oauth-protected-resource/mcp", scope="scale-mobili/reports:write"'
+        + '/.well-known/oauth-protected-resource/mcp", scope="'
+        + oauth_scopes(settings)[0]
+        + '"'
     )

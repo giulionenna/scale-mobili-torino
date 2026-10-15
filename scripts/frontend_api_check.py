@@ -53,12 +53,12 @@ def check_oauth(browser, web, base):
             authorization.update({key: values[0] for key, values in params.items()})
             assert authorization["code_challenge_method"] == "S256"
             assert authorization["resource"] == base + "/mcp"
-            assert "scale-mobili/stats:read" in authorization["scope"]
+            assert base + "/mcp/stats:read" in authorization["scope"]
             route.fulfill(
                 status=302,
                 headers={
                     "Location": web
-                    + "/callback?code=synthetic-code&state="
+                    + "/auth/cognito?code=synthetic-code&state="
                     + authorization["state"]
                 },
             )
@@ -105,7 +105,9 @@ def check_oauth(browser, web, base):
     assert grants == ["authorization_code", "refresh_token"]
     assert "Bearer oauth-synthetic-2" in bearer_tokens
     # An unsolicited callback must not exchange a code.
-    page.goto(web + "/callback?code=unsolicited&state=wrong", wait_until="networkidle")
+    page.goto(
+        web + "/auth/cognito?code=unsolicited&state=wrong", wait_until="networkidle"
+    )
     expect(page.get_by_role("status")).to_contain_text("Accesso non avviato")
     assert grants == ["authorization_code", "refresh_token"]
     assert "?" not in page.url
