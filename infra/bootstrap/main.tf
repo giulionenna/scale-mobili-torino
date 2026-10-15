@@ -161,7 +161,7 @@ locals {
     { Effect = "Allow", Action = ["sts:GetCallerIdentity"], Resource = "*" },
     { Effect = "Allow", Action = ["dynamodb:DescribeTable", "dynamodb:DescribeContinuousBackups", "dynamodb:DescribeTimeToLive", "dynamodb:ListTagsOfResource"], Resource = local.table_arns },
     { Effect = "Allow", Action = ["lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:GetFunctionCodeSigningConfig", "lambda:GetPolicy", "lambda:ListVersionsByFunction", "lambda:GetFunctionConcurrency", "lambda:ListTags"], Resource = "arn:${local.partition}:lambda:${var.region}:${local.account}:function:${var.prefix}-*" },
-    { Effect = "Allow", Action = ["s3:GetBucket*", "s3:ListBucket"], Resource = "arn:${local.partition}:s3:::${var.prefix}-*" },
+    { Effect = "Allow", Action = ["s3:GetBucket*", "s3:GetLifecycleConfiguration", "s3:GetReplicationConfiguration", "s3:GetEncryptionConfiguration", "s3:GetAccelerateConfiguration", "s3:ListBucket"], Resource = "arn:${local.partition}:s3:::${var.prefix}-*" },
     { Effect = "Allow", Action = ["iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies"], Resource = local.runtime_roles },
     { Effect = "Allow", Action = ["ssm:GetParameter", "ssm:ListTagsForResource"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/*" },
     # Il provider legge i metadati dopo GetParameter, anche con value_wo.

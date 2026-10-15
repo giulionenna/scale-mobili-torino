@@ -58,6 +58,11 @@ le risorse applicative non sono ancora state create.
 - In caso di errore, i workflow conservano i log Terraform soltanto nel bucket
   privato, nello stesso prefisso dei piani con scadenza a sette giorni. Non
   pubblicano contenuto Terraform nei log Actions o negli artifact GitHub.
+- Il refresh del piano sullo stato parziale ha rilevato una lettura S3 mancante:
+  `s3:GetLifecycleConfiguration` non è inclusa in `s3:GetBucket*`. Il bootstrap
+  include ora anche le letture di replica, cifratura e accelerazione usate dal
+  provider AWS 6.68.0; tutte restano limitate agli ARN dei bucket del progetto,
+  senza autorizzare letture degli oggetti applicativi al ruolo plan.
 - **Limite dell'integrazione GitHub:** restituisce HTTP 403 `Resource not accessible
   by integration` per la creazione dell'environment `aws-prototype`, le variabili
   Actions e la chiave pubblica necessaria a scrivere i segreti. L'accesso ADMIN
