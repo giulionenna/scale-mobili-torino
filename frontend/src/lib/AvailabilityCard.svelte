@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { latest, stations } from "./platform-demo";
-  import type { Data } from "./platform-demo";
+  import { latest } from "./platform-model";
+  import type { Data } from "./platform-model";
   let {
     data,
     unlocked = false,
@@ -14,21 +14,25 @@
     id?: string;
   } = $props();
   let expanded = $state(false);
-  const stats = $derived({
-    total: data?.devices.length || 0,
-    working:
-      data?.devices.filter((d) => latest(data!, d.id)?.status === "funzionante")
-        .length || 0,
-    stopped:
-      data?.devices.filter((d) =>
+  const stations = $derived(data?.stationCatalog || []);
+  const stats = $derived.by(() => {
+    const devices = data?.devices || [];
+    const working =
+      data?.availability?.working ??
+      devices.filter((d) => latest(data!, d.id)?.status === "funzionante")
+        .length;
+    return {
+      total: data?.availability?.total ?? devices.length,
+      working,
+      stopped: devices.filter((d) =>
         ["guasta", "manutenzione"].includes(latest(data!, d.id)?.status || ""),
-      ).length || 0,
-    unknown:
-      data?.devices.filter(
+      ).length,
+      unknown: devices.filter(
         (d) =>
           !latest(data!, d.id) ||
           latest(data!, d.id)?.status === "non_verificabile",
-      ).length || 0,
+      ).length,
+    };
   });
   function percentage(count: number) {
     return stats.total ? `${Math.round((count / stats.total) * 100)}%` : "—";
@@ -48,12 +52,17 @@
       >
       <strong class="availability-value">{percentage(stats.working)}</strong>
       <span class="availability-caption"
-        >{#if data}<b>{stats.working} su {stats.total}</b> impianti del campione{:else}Caricamento
-          del campione…{/if}</span
+        >{#if data}<b>{stats.working} su {stats.total}</b> impianti censiti{:else}Caricamento
+          del censimento…{/if}</span
       >
     </span>
     <span class="availability-side">
-      <span class="sample-chip">M1 · {stations.length} stazioni · demo</span>
+      <span class="sample-chip"
+        >M1 · {stations.length} stazioni{data?.availability?.synthetic ||
+        !data?.availability
+          ? " · demo"
+          : ""}</span
+      >
       {#if unlocked}<span class="availability-mini"
           ><b>{stats.stopped}</b> con criticità <b>{stats.unknown}</b> da verificare</span
         >{/if}

@@ -2,6 +2,8 @@
   import { onMount, untrack } from "svelte";
   import Icon from "./Icon.svelte";
   import AvailabilityCard from "./AvailabilityCard.svelte";
+  import PrivatePhoto from "./PrivatePhoto.svelte";
+  import { ApiError } from "./api";
   import StatisticGate from "./StatisticGate.svelte";
   import { overviewFor } from "./platform-overview";
   import {
@@ -9,21 +11,26 @@
     member,
     signIn,
     signOut,
-    latest,
-    stationName,
-    deviceName,
-    labels,
-    kindLabels,
-    age,
-    date,
-    stations,
+    stationName as resolveStationName,
     gttSource,
     submitReport,
     submitProposal,
     reviewProposal,
     reviewPhoto,
     preparePhoto,
-  } from "./platform-demo";
+    browserDemo,
+    developmentLogin,
+    backendMode,
+    moreReports,
+  } from "./platform-client";
+  import {
+    latest,
+    deviceName,
+    labels,
+    kindLabels,
+    age,
+    date,
+  } from "./platform-model";
   import type {
     Data,
     Member,
@@ -32,7 +39,7 @@
     DeviceStatus,
     Kind,
     Photo,
-  } from "./platform-demo";
+  } from "./platform-model";
   let { initialView = "landing" }: { initialView?: View } = $props();
   let view = $state<View>(untrack(() => initialView)),
     data = $state<Data | null>(null),
@@ -59,6 +66,12 @@
   let moderationTab = $state("devices"),
     detail = $state<Device | null>(null),
     mobileMenu = $state(false);
+  let reviewReasons = $state<Record<string, string>>({});
+  let reviewKeys: Record<string, string> = {};
+  const stations = $derived(data?.stationCatalog || []);
+  function stationName(id: string) {
+    return resolveStationName(data, id);
+  }
   let incidentTab = $state<"new" | "streak">("new");
   const paths: Record<View, string> = {
     landing: "/",
@@ -76,26 +89,32 @@
     mobileMenu = false;
   }
   onMount(() => {
-    try {
-      data = load();
-      user = member();
-      ready = true;
-      if (user && view === "moderation" && user.role !== "moderator") {
-        view = "home";
-        error = "La revisione è riservata al moderatore.";
-        window.history.replaceState({}, "", paths.home);
+    let mounted = true;
+    requestId = crypto.randomUUID();
+    void (async () => {
+      try {
+        const identity = await member();
+        const loaded = await load();
+        if (!mounted) return;
+        user = identity;
+        data = loaded;
+        if (user && view === "moderation" && user.role !== "moderator") {
+          view = "home";
+          error = "La revisione è riservata al moderatore.";
+          window.history.replaceState({}, "", paths.home);
+        }
+        if (!user && needsLogin(view)) {
+          desiredView = view;
+          view = "home";
+          window.history.replaceState({}, "", paths.home);
+          loginOpen = true;
+        }
+      } catch (e) {
+        showError(e);
+      } finally {
+        if (mounted) ready = true;
       }
-      if (!user && needsLogin(view)) {
-        desiredView = view;
-        view = "home";
-        window.history.replaceState({}, "", paths.home);
-        loginOpen = true;
-      }
-    } catch {
-      error =
-        "La memoria della sessione non è disponibile. Abilita i dati del sito per provare la demo.";
-      ready = true;
-    }
+    })();
     const pop = () => {
       const next = (Object.entries(paths).find(
         ([, p]) => p === window.location.pathname,
@@ -112,37 +131,41 @@
       } else view = next;
     };
     window.addEventListener("popstate", pop);
-    return () => window.removeEventListener("popstate", pop);
+    return () => {
+      mounted = false;
+      window.removeEventListener("popstate", pop);
+    };
   });
   const totalDevices = $derived(data?.devices.length || 0);
   const pending = $derived(
     data?.proposals.filter((p) => p.status === "pending") || [],
   );
   const photoQueue = $derived(
-    data
-      ? [
-          ...data.reports
-            .filter((r) => r.photo?.status === "pending")
-            .map((r) => ({
-              id: r.id,
-              origin: "report" as const,
-              photo: r.photo!,
-              name: deviceName(data!, r.device_id),
-              station_id: r.station_id,
-            })),
-          ...data.proposals
-            .filter(
-              (p) => p.photo?.status === "pending" && p.status === "approved",
-            )
-            .map((p) => ({
-              id: p.id,
-              origin: "proposal" as const,
-              photo: p.photo!,
-              name: p.name,
-              station_id: p.station_id,
-            })),
-        ]
-      : [],
+    data?.photoQueue ??
+      (data
+        ? [
+            ...data.reports
+              .filter((r) => r.photo?.status === "pending")
+              .map((r) => ({
+                id: r.id,
+                origin: "report" as const,
+                photo: r.photo!,
+                name: deviceName(data!, r.device_id),
+                station_id: r.station_id,
+              })),
+            ...data.proposals
+              .filter(
+                (p) => p.photo?.status === "pending" && p.status === "approved",
+              )
+              .map((p) => ({
+                id: p.id,
+                origin: "proposal" as const,
+                photo: p.photo!,
+                name: p.name,
+                station_id: p.station_id,
+              })),
+          ]
+        : []),
   );
   const visibleStations = $derived(
     stations.filter(
@@ -165,8 +188,7 @@
   const feed = $derived(
     data?.reports
       .filter((r) => streamFilter === "all" || r.station_id === streamFilter)
-      .toSorted((a, b) => b.recorded_at.localeCompare(a.recorded_at))
-      .slice(0, 12) || [],
+      .toSorted((a, b) => b.recorded_at.localeCompare(a.recorded_at)) || [],
   );
   const overview = $derived(overviewFor(data));
   const comparable = $derived(overview.comparable);
@@ -177,7 +199,19 @@
   const formDevices = $derived(
     data?.devices.filter((d) => d.station_id === selectedStation) || [],
   );
+  function comparisonObservation(id: string) {
+    const row = data?.statistics?.alignment.items.find(
+      (item) => item.device_id === id,
+    );
+    return row
+      ? { status: row.community_status, observed_at: row.observed_at }
+      : latest(data!, id);
+  }
   function showError(e: unknown) {
+    if (e instanceof ApiError && e.status === 401) {
+      leave();
+      loginOpen = true;
+    }
     error = e instanceof Error ? e.message : "Operazione non riuscita.";
   }
   function go(next: View) {
@@ -201,22 +235,77 @@
       photo = undefined;
     }
   }
-  function enter(role: "citizen" | "moderator") {
+  async function enter(role: "citizen" | "moderator") {
+    busy = true;
+    error = "";
     try {
-      user = signIn(role);
+      const identity = await signIn(role, paths[desiredView]);
+      if (!identity) return; // Cognito redirects to its authorization endpoint.
+      user = identity;
+      data = await load();
       loginOpen = false;
       const destination =
-        desiredView === "moderation" && role !== "moderator"
+        desiredView === "moderation" && user.role !== "moderator"
           ? "home"
           : desiredView;
       if (destination !== view) go(destination);
     } catch (e) {
       showError(e);
+    } finally {
+      busy = false;
+    }
+  }
+  async function refresh() {
+    busy = true;
+    error = "";
+    try {
+      const identity = await member();
+      if (user && !identity) leave();
+      user = identity;
+      data = await load();
+    } catch (e) {
+      showError(e);
+    } finally {
+      busy = false;
+    }
+  }
+  async function refreshAfterSave() {
+    try {
+      data = await load();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        leave();
+        notice = "Contributo salvato. Accedi nuovamente per continuare.";
+      } else {
+        notice +=
+          " Il salvataggio è riuscito; aggiorna la panoramica per rileggere i dati.";
+      }
+    }
+  }
+  async function loadMore() {
+    if (!data) return;
+    busy = true;
+    try {
+      data = await moreReports(data);
+    } catch (e) {
+      showError(e);
+    } finally {
+      busy = false;
     }
   }
   function leave() {
     signOut();
     user = null;
+    if (data)
+      data = {
+        ...data,
+        statistics: undefined,
+        statisticsError: undefined,
+        proposals: [],
+        photoQueue: undefined,
+        officialExamples: {},
+        audit: [],
+      };
     detail = null;
     mobileMenu = false;
     loginOpen = false;
@@ -252,12 +341,12 @@
     photo = undefined;
     if (photoInput) photoInput.value = "";
   }
-  function sendReport(e: SubmitEvent) {
+  async function sendReport(e: SubmitEvent) {
     e.preventDefault();
     busy = true;
     error = "";
     try {
-      data = submitReport(
+      await submitReport(
         {
           station_id: selectedStation,
           device_id: selectedDevice,
@@ -271,18 +360,19 @@
         ? "Segnalazione inviata. La foto rimane privata fino all’approvazione."
         : "Grazie! La tua segnalazione è stata aggiunta allo stream.";
       go("home");
+      await refreshAfterSave();
     } catch (e) {
       showError(e);
     } finally {
       busy = false;
     }
   }
-  function sendProposal(e: SubmitEvent) {
+  async function sendProposal(e: SubmitEvent) {
     e.preventDefault();
     busy = true;
     error = "";
     try {
-      data = submitProposal(
+      await submitProposal(
         {
           station_id: selectedStation,
           kind: proposalKind,
@@ -298,38 +388,68 @@
       proposalName = "";
       proposalLocation = "";
       go("home");
+      await refreshAfterSave();
     } catch (e) {
       showError(e);
     } finally {
       busy = false;
     }
   }
-  function decide(id: string, decision: "approved" | "rejected") {
+  async function decide(id: string, decision: "approved" | "rejected") {
+    const item = data?.proposals.find((p) => p.id === id);
+    if (!item) return;
+    busy = true;
     error = "";
+    const key = `proposal:${id}:${decision}:${item.version || 1}`;
+    reviewKeys[key] ||= crypto.randomUUID();
     try {
-      data = reviewProposal(id, decision);
+      await reviewProposal(
+        id,
+        decision,
+        item.version || 1,
+        reviewReasons[id] || "",
+        reviewKeys[key],
+      );
       notice =
         decision === "approved"
-          ? "Impianto approvato e aggiunto al censimento della demo."
+          ? "Impianto approvato e aggiunto al censimento."
           : "Proposta respinta. La decisione è conservata.";
+      await refreshAfterSave();
     } catch (e) {
       showError(e);
+    } finally {
+      busy = false;
     }
   }
-  function decidePhoto(
+  async function decidePhoto(
     id: string,
     origin: "report" | "proposal",
     decision: "approved" | "rejected",
   ) {
+    const item = photoQueue.find((p) => p.id === id);
+    if (!item) return;
+    busy = true;
     error = "";
+    const key = `photo:${id}:${decision}:${item.photo.version || 1}`;
+    reviewKeys[key] ||= crypto.randomUUID();
     try {
-      data = reviewPhoto(id, origin, decision);
+      await reviewPhoto(
+        id,
+        origin,
+        decision,
+        item.photo.version || 1,
+        reviewReasons[id] || "",
+        reviewKeys[key],
+      );
       notice =
         decision === "approved"
-          ? "Foto approvata. Ora è visibile nello stream."
-          : "Foto respinta: rimane fuori dallo stream.";
+          ? "Foto approvata. Ora è pubblica."
+          : "Foto respinta: rimane privata.";
+      await refreshAfterSave();
     } catch (e) {
       showError(e);
+    } finally {
+      busy = false;
     }
   }
 
@@ -444,10 +564,16 @@
               name={user?.role === "moderator" ? "shield" : "user"}
               size={17}
             /></span
-          ><span>{user?.name}<small>Accesso simulato</small></span><button
-            class="icon-button"
-            aria-label="Esci"
-            onclick={leave}><Icon name="logout" size={17} /></button
+          ><span
+            >{user?.name}<small
+              >{browserDemo
+                ? "Accesso simulato"
+                : developmentLogin()
+                  ? "Accesso di prova"
+                  : "Account verificato"}</small
+            ></span
+          ><button class="icon-button" aria-label="Esci" onclick={leave}
+            ><Icon name="logout" size={17} /></button
           >
         </div>
       {:else}<button
@@ -463,6 +589,16 @@
   </div>
 </header>
 
+{#if error}<div class="app-main">
+    <div class="toast error" role="alert">
+      {error}<button class="text-button" onclick={refresh} disabled={busy}
+        >Riprova</button
+      >
+    </div>
+  </div>{/if}
+{#if !ready}<p class="app-main" role="status">
+    Caricamento della piattaforma…
+  </p>{/if}
 {#if view === "landing"}<main class="landing-main">
     <section class="landing-hero">
       <div class="hero-copy">
@@ -495,8 +631,10 @@
           id="landing-availability-details"
         />
         <p class="landing-availability-note">
-          <Icon name="clock" size={16} /> Ultima osservazione community · campione
-          dimostrativo
+          <Icon name="clock" size={16} /> Ultima osservazione community · {browserDemo ||
+          data?.availability?.synthetic
+            ? "campione dimostrativo"
+            : "censimento disponibile"}
         </p>
         <p class="landing-open-note">
           La panoramica è aperta a tutti. Accedi per il confronto GTT e le altre
@@ -571,8 +709,11 @@
     <div class="landing-demo-note">
       <Icon name="warning" size={17} />
       <p>
-        Stai esplorando un prototipo: impianti, stati e segnalazioni sono
-        dimostrativi. L’accesso alla piattaforma è simulato.
+        {browserDemo
+          ? "Stai esplorando un prototipo: impianti, stati e segnalazioni sono dimostrativi. L’accesso alla piattaforma è simulato."
+          : data?.availability?.synthetic
+            ? "Ambiente di sviluppo con impianti fittizi: i contributi sono salvati nel backend."
+            : "Progetto indipendente: consulta fonte e momento di ogni osservazione."}
       </p>
     </div>
   </main>
@@ -580,7 +721,13 @@
     <div class="demo-ribbon">
       <span><span class="tiny-dot"></span>ANTEPRIMA INTERATTIVA</span>
       <p>
-        Impianti e segnalazioni di esempio · dati temporanei di questa sessione
+        {browserDemo
+          ? "Impianti e segnalazioni di esempio · dati temporanei di questa sessione"
+          : backendMode() === "demo"
+            ? "Dati di prova salvati nel backend in memoria"
+            : data.availability?.synthetic
+              ? "Censimento fittizio · contributi persistenti nel backend di sviluppo"
+              : "Censimento e osservazioni della community"}
       </p>
     </div>
     {#if notice}<div class="toast success" role="status">
@@ -589,8 +736,6 @@
           aria-label="Chiudi messaggio"
           onclick={() => (notice = "")}><Icon name="close" size={17} /></button
         >
-      </div>{/if}{#if error}<div class="toast error" role="alert">
-        <Icon name="warning" size={18} />{error}
       </div>{/if}
     {#if view === "home"}
       <section class="dashboard-heading">
@@ -605,7 +750,20 @@
         <button class="button yellow report-cta" onclick={() => reportFor()}
           ><Icon name="plus" size={21} />Invia una segnalazione</button
         >
+        <button class="text-button" onclick={refresh} disabled={busy}
+          >Aggiorna panoramica</button
+        >
       </section>
+      {#if user && data.statisticsError}<p role="status">
+          {data.statisticsError}
+        </p>{/if}
+      {#if user && data.statistics && (data.statistics.stale || data.statistics.pending_recalculation)}<p
+          role="status"
+        >
+          Statistiche in aggiornamento · ultimo calcolo {date(
+            data.statistics.generated_at,
+          )}
+        </p>{/if}
       <section class="overview-stack" aria-label="Statistiche della community">
         <AvailabilityCard
           {data}
@@ -631,7 +789,9 @@
             <div class="alignment-copy">
               <div class="alignment-heading">
                 <h2>Quanto è allineato GTT?</h2>
-                <span class="demo-label">Confronto demo</span>
+                <span class="demo-label"
+                  >{browserDemo ? "Confronto demo" : "Fonti verificate"}</span
+                >
               </div>
               <p>
                 GTT e ultima osservazione della community, impianto per
@@ -644,7 +804,9 @@
               </div>
               <small
                 >Stati identici / impianti con entrambe le fonti verificabili.
-                Gli esempi GTT sono fittizi.</small
+                {browserDemo
+                  ? "Gli esempi GTT sono fittizi."
+                  : "Il confronto non comprende gli impianti privi di evidenze."}</small
               >
               <a href="#comparison-detail" class="text-button"
                 >Vedi il confronto<Icon name="arrow" size={17} /></a
@@ -739,8 +901,8 @@
               {/each}
             </div>
             <p class="incident-footnote">
-              Dati del campione demo · una sequenza di segnalazioni non prova un
-              guasto continuo tra le osservazioni.
+              Osservazioni disponibili · una sequenza di segnalazioni non prova
+              un guasto continuo tra le osservazioni.
             </p>
           </section>
         </StatisticGate>
@@ -777,7 +939,10 @@
                     <h3>{station.name}</h3>
                     <small
                       >{data.devices.filter((d) => d.station_id === station.id)
-                        .length} impianti · esempio</small
+                        .length} impianti{browserDemo ||
+                      data.availability?.synthetic
+                        ? " · esempio"
+                        : ""}</small
                     >
                   </div>
                   <span class="station-line">M1</span>
@@ -846,7 +1011,9 @@
             </div>
             <div class="comparison-banner">
               <strong>{differences.length} differenze</strong><span
-                >nel confronto dimostrativo</span
+                >{browserDemo
+                  ? "nel confronto dimostrativo"
+                  : "tra le fonti disponibili"}</span
               >
             </div>
             <p class="comparison-explanation">
@@ -854,20 +1021,18 @@
               mostriamo le differenze.
             </p>
             <div class="comparison-list">
-              {#each comparable as device}{@const observation = latest(
-                  data,
-                  device.id,
-                )!}
+              {#each comparable as device}{@const observation =
+                  comparisonObservation(device.id)!}
                 <article>
                   <h3>
                     {stationName(device.station_id)}<small
-                      >{device.name} · esempio</small
+                      >{device.name}{browserDemo ? " · esempio" : ""}</small
                     >
                   </h3>
                   <div class="comparison-source">
-                    <span>GTT <small>esempio</small></span><strong
-                      >{labels[data.officialExamples[device.id]]}</strong
-                    >
+                    <span
+                      >GTT {#if browserDemo}<small>esempio</small>{/if}</span
+                    ><strong>{labels[data.officialExamples[device.id]]}</strong>
                   </div>
                   <div class="comparison-source">
                     <span>Community</span><strong
@@ -876,13 +1041,20 @@
                       >{labels[observation.status]}</strong
                     >
                   </div>
+                  <small
+                    >Community osservata il {date(
+                      observation.observed_at,
+                    )}</small
+                  >
                 </article>{/each}
             </div>
             <div class="source-warning">
               <Icon name="warning" size={15} />
               <p>
-                Nessun report GTT è stato acquisito in questa demo. L’assenza di
-                un impianto da un report non ne dimostra il funzionamento.
+                {browserDemo
+                  ? "Nessun report GTT è stato acquisito in questa demo."
+                  : "Il confronto usa soltanto interpretazioni di fonti archiviate e verificate."}
+                L’assenza di un impianto da un report non ne dimostra il funzionamento.
               </p>
             </div>
             <a
@@ -941,7 +1113,7 @@
                   </p>{/if}{#if report.photo?.status === "approved"}<img
                     class="feed-photo"
                     src={report.photo.data}
-                    alt="Foto approvata della segnalazione di esempio"
+                    alt="Foto approvata della segnalazione"
                   />{/if}
                 <div class="feed-meta">
                   <span>{report.author_name}</span><span
@@ -964,9 +1136,16 @@
         </div>
         <div class="feed-footnote">
           <Icon name="clock" size={14} />Osservazione e registrazione sono
-          separate. Gli esempi non descrivono lo stato reale della metro.
+          separate. {browserDemo || data.availability?.synthetic
+            ? "Gli esempi non descrivono lo stato reale della metro."
+            : "Controlla sempre il momento dell’osservazione."}
         </div>
       </section>
+      {#if data.feedCursor}<button
+          class="button outline"
+          onclick={loadMore}
+          disabled={busy}>Carica altre segnalazioni</button
+        >{/if}
       <section class="contribute-banner">
         <span class="contribute-icon"><Icon name="plus" size={28} /></span>
         <div>
@@ -1160,7 +1339,7 @@
           <div class="form-submit">
             <span
               ><Icon name="shield" size={16} />{view === "report"
-                ? "Contributo attribuito al tuo account demo"
+                ? "Contributo attribuito al tuo account"
                 : "La proposta sarà esaminata prima della pubblicazione"}</span
             ><button type="submit" class="button yellow" disabled={busy}
               >{busy
@@ -1197,7 +1376,9 @@
           </ul>
           <div class="form-aside-note">
             <Icon name="warning" size={16} /><span
-              >Usa solo contenuti di prova. Login e moderazione sono simulati.</span
+              >{browserDemo || backendMode() !== "aws"
+                ? "Usa solo contenuti di prova in questo ambiente."
+                : "Condividi solo fotografie che puoi pubblicare."}</span
             >
           </div>
         </aside>
@@ -1205,7 +1386,7 @@
     {:else if view === "moderation" && user?.role === "moderator"}
       <section class="dashboard-heading">
         <div>
-          <p class="eyebrow">AREA MODERATORE · DEMO</p>
+          <p class="eyebrow">AREA MODERATORE</p>
           <h1>Un censimento <span>di cui fidarsi.</span></h1>
           <p>Verifica le proposte e le fotografie prima della pubblicazione.</p>
         </div>
@@ -1222,11 +1403,11 @@
           class:active={moderationTab === "photos"}
           onclick={() => (moderationTab = "photos")}
           >Foto in revisione<span>{photoQueue.length}</span></button
-        ><button
-          class:active={moderationTab === "history"}
-          onclick={() => (moderationTab = "history")}
-          >Decisioni precedenti</button
-        >
+        >{#if browserDemo}<button
+            class:active={moderationTab === "history"}
+            onclick={() => (moderationTab = "history")}
+            >Decisioni precedenti</button
+          >{/if}
       </div>
       {#if moderationTab === "devices"}<div class="moderation-list">
           {#each pending as proposal}<article class="panel moderation-card">
@@ -1260,22 +1441,36 @@
               </dl>
               {#if proposal.description}<p>
                   {proposal.description}
-                </p>{/if}{#if proposal.photo}<img
-                  class="moderation-photo"
-                  src={proposal.photo.data}
-                  alt="Foto privata della proposta da verificare"
-                />{/if}
+                </p>{/if}{#if proposal.photo}{#if browserDemo}<img
+                    class="moderation-photo"
+                    src={proposal.photo.data}
+                    alt="Foto privata della proposta da verificare"
+                  />{:else}<PrivatePhoto id={proposal.photo.id!} />{/if}{/if}
               <p class="review-note">
                 <Icon name="shield" size={15} />L’approvazione aggiunge
                 l’impianto. L’eventuale foto resta in una revisione separata.
               </p>
+              {#if !browserDemo}<label for={`reason-${proposal.id}`}
+                  >Motivazione della decisione (privata)</label
+                ><textarea
+                  id={`reason-${proposal.id}`}
+                  bind:value={reviewReasons[proposal.id]}
+                  minlength="3"
+                  maxlength="1000"
+                  disabled={busy}></textarea>{/if}
               <div class="review-actions">
                 <button
                   class="button navy"
+                  disabled={busy ||
+                    (!browserDemo &&
+                      (reviewReasons[proposal.id]?.trim().length || 0) < 3)}
                   onclick={() => decide(proposal.id, "approved")}
                   ><Icon name="check" size={17} />Approva impianto</button
                 ><button
                   class="button outline"
+                  disabled={busy ||
+                    (!browserDemo &&
+                      (reviewReasons[proposal.id]?.trim().length || 0) < 3)}
                   onclick={() => decide(proposal.id, "rejected")}
                   ><Icon name="close" size={17} />Respingi proposta</button
                 >
@@ -1300,22 +1495,36 @@
                 </div>
                 <span class="status maintenance">Foto privata</span>
               </div>
-              <img
-                class="moderation-photo"
-                src={item.photo.data}
-                alt="Fotografia privata in revisione"
-              />
+              {#if browserDemo}<img
+                  class="moderation-photo"
+                  src={item.photo.data}
+                  alt="Fotografia privata in revisione"
+                />{:else}<PrivatePhoto id={item.id} />{/if}
               <p class="review-note">
                 Controlla che la foto riguardi l’impianto e non contenga volti,
                 documenti o dati personali.
               </p>
+              {#if !browserDemo}<label for={`reason-${item.id}`}
+                  >Motivazione della decisione (privata)</label
+                ><textarea
+                  id={`reason-${item.id}`}
+                  bind:value={reviewReasons[item.id]}
+                  minlength="3"
+                  maxlength="1000"
+                  disabled={busy}></textarea>{/if}
               <div class="review-actions">
                 <button
                   class="button navy"
+                  disabled={busy ||
+                    (!browserDemo &&
+                      (reviewReasons[item.id]?.trim().length || 0) < 3)}
                   onclick={() => decidePhoto(item.id, item.origin, "approved")}
                   ><Icon name="check" size={17} />Approva foto</button
                 ><button
                   class="button outline"
+                  disabled={busy ||
+                    (!browserDemo &&
+                      (reviewReasons[item.id]?.trim().length || 0) < 3)}
                   onclick={() => decidePhoto(item.id, item.origin, "rejected")}
                   >Respingi foto</button
                 >
@@ -1348,8 +1557,6 @@
             </p>{/if}
         </section>{/if}
     {/if}
-  </main>{:else if ready && error}<main class="app-main">
-    <div class="toast error" role="alert">{error}</div>
   </main>{/if}
 
 <footer class="site-footer">
@@ -1361,7 +1568,9 @@
   </div>
   <div>
     <span>Scale mobili. Ascensori. Persone.</span><small
-      >Prototipo con dati dimostrativi · Orari Europe/Rome</small
+      >{browserDemo || data?.availability?.synthetic
+        ? "Prototipo con dati dimostrativi"
+        : "Prototipo civico"} · Orari Europe/Rome</small
     >
   </div>
 </footer>
@@ -1394,20 +1603,39 @@
         Accedi per vedere tutte le statistiche, segnalare un problema o proporre
         un impianto.
       </p>
-      <div class="login-demo-box">
-        <strong>Accesso alla demo</strong><span
-          >Prova il servizio con un’identità simulata. Nessuna registrazione
-          reale.</span
+      {#if error}<p role="alert">{error}</p>{/if}
+      {#if developmentLogin()}
+        <div class="login-demo-box">
+          <strong
+            >{browserDemo ? "Accesso alla demo" : "Accesso di sviluppo"}</strong
+          ><span
+            >Identità di prova per questo ambiente. Nessuna registrazione reale.</span
+          >
+        </div>
+        <button
+          class="button yellow full"
+          onclick={() => enter("citizen")}
+          disabled={busy}
+          >Continua come cittadino<Icon name="arrow" size={18} /></button
         >
-      </div>
-      <button class="button yellow full" onclick={() => enter("citizen")}
-        >Continua come cittadino<Icon name="arrow" size={18} /></button
-      ><button class="button outline full" onclick={() => enter("moderator")}
-        ><Icon name="shield" size={18} />Prova la modalità moderatore</button
-      ><small class="login-footnote"
-        >La modalità moderatore serve a provare l’approvazione di impianti e
-        foto.</small
-      >
+        <button
+          class="button outline full"
+          onclick={() => enter("moderator")}
+          disabled={busy}
+          ><Icon name="shield" size={18} />Prova la modalità moderatore</button
+        >
+        <small class="login-footnote"
+          >La modalità moderatore serve a provare l’approvazione di impianti e
+          foto.</small
+        >
+      {:else}<button
+          class="button yellow full"
+          onclick={() => enter("citizen")}
+          disabled={busy}
+          >Accedi al tuo account<Icon name="arrow" size={18} /></button
+        ><small class="login-footnote"
+          >L’accesso avviene attraverso il servizio di autenticazione.</small
+        >{/if}
     </div>
   </div>{/if}
 {#if detail && data}{@const observation = latest(data, detail.id)}
@@ -1439,7 +1667,11 @@
           size={30}
         /></span
       >
-      <p class="eyebrow">{stationName(detail.station_id)} · IMPIANTO DEMO</p>
+      <p class="eyebrow">
+        {stationName(detail.station_id)}{detail.synthetic
+          ? " · IMPIANTO DEMO"
+          : ""}
+      </p>
       <h2 id="detail-title">{detail.name}</h2>
       <p>{detail.location}</p>
       <div class="detail-evidence">
@@ -1455,9 +1687,15 @@
       </div>
       <div class="detail-evidence muted">
         <strong>Fonte ufficiale</strong><span
-          >Nessuna evidenza reale acquisita</span
+          >{data.officialEvidence?.[detail.id]
+            ? labels[data.officialEvidence[detail.id]!.status]
+            : "Nessuna evidenza disponibile"}</span
         ><small
-          >I valori del confronto in home sono esclusivamente dimostrativi.</small
+          >{browserDemo
+            ? "I valori del confronto in home sono esclusivamente dimostrativi."
+            : data.officialEvidence?.[detail.id]?.published_at
+              ? `Pubblicata il ${date(data.officialEvidence[detail.id]!.published_at!)}`
+              : "L’assenza di comunicazioni non prova il funzionamento."}</small
         >
       </div>
       <button

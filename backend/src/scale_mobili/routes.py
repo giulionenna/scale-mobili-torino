@@ -124,6 +124,10 @@ def register_routes(app, service, settings):
     def availability():
         return service.availability()
 
+    @app.get("/api/overview")
+    def overview():
+        return service.public_overview()
+
     @app.get("/api/stats/private")
     def private_statistics(actor=actor_dependency):
         return service.private_statistics(actor)

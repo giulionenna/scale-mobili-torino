@@ -22,6 +22,12 @@ def test_public_and_private_statistics_and_new_report_contract(settings):
     with TestClient(create_app(settings)) as client:
         availability = client.get("/api/stats/availability")
         assert availability.status_code == 200 and availability.json()["total"] == 9
+        overview = client.get("/api/overview").json()
+        assert len(overview["stations"]) == 4 and len(overview["devices"]) == 9
+        assert all(state["community"] is None for state in overview["states"].values())
+        assert overview["availability"]["working"] == 0
+        assert "alignment" not in overview and "incidents" not in overview
+        assert all("PK" not in device for device in overview["devices"])
         assert "alignment" not in availability.json()
         assert client.get("/api/stats/private").status_code == 401
         assert (
@@ -43,6 +49,9 @@ def test_public_and_private_statistics_and_new_report_contract(settings):
             json={"station_id": "demo-station", "status": "guasta", "description": "Fixture HTTP"},
         )
         assert result.status_code == 201
+        overview = client.get("/api/overview").json()
+        assert overview["states"]["demo-esc-1"]["community"]["status"] == "guasta"
+        assert overview["availability"]["observed_devices"] == 1
         assert client.get("/api/feed").json()["items"][0]["description"] == "Fixture HTTP"
         assert client.get("/api/moderation/proposal/queue", headers=headers()).status_code == 403
         assert client.post(

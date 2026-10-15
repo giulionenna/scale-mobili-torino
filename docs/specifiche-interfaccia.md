@@ -199,3 +199,25 @@ e dei flussi completi di segnalazione/proposta/moderazione. Corrette la chiusura
 rapida del login con Esc e la larghezza del menu ospite a 375 px. Pubblicazione
 Sites riuscita (`succeeded`) sullo stesso URL; commit della fonte:
 `3dcfb4431ace28a88602ef2581c542458c27c379`.
+
+
+## Collegamento alle API — 15 ottobre 2026
+
+Il frontend della repository usa ora gli endpoint Python con
+`PUBLIC_BROWSER_DEMO=false`. La landing mantiene la stessa interfaccia; la home
+legge censimento e stati correnti da `/api/overview` e lo stream paginato da
+`/api/feed`. La prima percentuale usa il totale del censimento; informazioni
+mancanti restano distinte dagli impianti funzionanti. Il confronto e gli incidenti
+usano le statistiche server, dopo login. Le schede protette non sono scaricate né
+renderizzate per un visitatore anonimo.
+
+Segnalazioni, foto, proposte e decisioni passano alle API. Il moderatore indica una
+motivazione privata; il server verifica ruolo, versione e stato corrente. Il login
+Cognito usa PKCE e torna alla pagina richiesta; identità simulate sono disponibili
+solo per demo browser oppure con flag esplicito su backend non AWS.
+
+Il collaudo browser copre DynamoDB/S3 emulati, riavvio API, una nuova sessione,
+ritentativo di una risposta persa senza duplicazione e foto private/pubbliche.
+Il percorso OAuth è verificato con endpoint intercettati; Cognito reale resta da
+collaudare dopo l’attivazione AWS. Questa modifica non ripubblica la demo Sites.
+Dettagli e comandi in [frontend-collegato.md](frontend-collegato.md).

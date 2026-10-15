@@ -1,64 +1,33 @@
 // Dati ed accesso esclusivamente dimostrativi. Nessuna fonte GTT viene acquisita qui.
-export type Kind = "scala_mobile" | "ascensore";
-export type DeviceStatus =
-  "funzionante" | "guasta" | "manutenzione" | "non_verificabile";
-export type View = "landing" | "home" | "report" | "proposal" | "moderation";
-export type Station = { id: string; name: string; area: string };
-export type Device = {
-  id: string;
-  station_id: string;
-  kind: Kind;
-  name: string;
-  location: string;
-  synthetic: true;
-};
-export type Member = {
-  id: string;
-  name: string;
-  role: "citizen" | "moderator";
-};
-export type Photo = {
-  data: string;
-  status: "pending" | "approved" | "rejected";
-};
-export type Report = {
-  id: string;
-  device_id: string;
-  station_id: string;
-  status: DeviceStatus;
-  description: string;
-  observed_at: string;
-  recorded_at: string;
-  author_id: string;
-  author_name: string;
-  photo?: Photo;
-  seeded?: boolean;
-};
-export type Proposal = {
-  id: string;
-  station_id: string;
-  kind: Kind;
-  name: string;
-  location: string;
-  description: string;
-  actor_id: string;
-  created_at: string;
-  status: "pending" | "approved" | "rejected";
-  photo?: Photo;
-  device_id?: string;
-};
-export type Data = {
-  devices: Device[];
-  reports: Report[];
-  proposals: Proposal[];
-  audit: {
-    actor: string;
-    target: string;
-    decision: string;
-    recorded_at: string;
-  }[];
-  officialExamples: Record<string, DeviceStatus>;
-};
+import type {
+  Data,
+  Device,
+  DeviceStatus,
+  Kind,
+  Member,
+  Photo,
+  Proposal,
+  Station,
+} from "./platform-model";
+export type {
+  Data,
+  Device,
+  DeviceStatus,
+  Kind,
+  Member,
+  Photo,
+  Station,
+  View,
+} from "./platform-model";
+import { labels } from "./platform-model";
+export {
+  labels,
+  kindLabels,
+  latest,
+  deviceName,
+  date,
+  age,
+} from "./platform-model";
 
 export const stations: Station[] = [
   { id: "demo-porta-nuova", name: "Porta Nuova", area: "Metro M1" },
@@ -66,16 +35,6 @@ export const stations: Station[] = [
   { id: "demo-vinzaglio", name: "Vinzaglio", area: "Metro M1" },
   { id: "demo-porta-susa", name: "Porta Susa", area: "Metro M1" },
 ];
-export const labels: Record<DeviceStatus, string> = {
-  funzionante: "Funzionante",
-  guasta: "Fuori servizio",
-  manutenzione: "In manutenzione",
-  non_verificabile: "Da verificare",
-};
-export const kindLabels: Record<Kind, string> = {
-  scala_mobile: "Scala mobile",
-  ascensore: "Ascensore",
-};
 export const gttSource =
   "https://www.gtt.to.it/cms/en/19-linee-e-orari/urbana/12186-metropolitana-aggiornamento-ascensori-e-scale-mobili";
 const key = "smt.platform-demo.v2";
@@ -89,7 +48,7 @@ function initial(): Data {
       kind: "scala_mobile" as Kind,
       name: "Scala mobile A",
       location: "Ingresso → mezzanino · esempio",
-      synthetic: true as const,
+      synthetic: true,
     },
     {
       id: `demo-device-${i}-lift`,
@@ -97,7 +56,7 @@ function initial(): Data {
       kind: "ascensore" as Kind,
       name: "Ascensore A",
       location: "Mezzanino → banchina · esempio",
-      synthetic: true as const,
+      synthetic: true,
     },
     ...(i === 0
       ? [
@@ -107,7 +66,7 @@ function initial(): Data {
             kind: "scala_mobile" as Kind,
             name: "Scala mobile B",
             location: "Mezzanino → banchina · esempio",
-            synthetic: true as const,
+            synthetic: true,
           },
         ]
       : []),
@@ -189,43 +148,6 @@ function actor(moderator = false): Member {
   if (moderator && user.role !== "moderator")
     throw new Error("Questa operazione è riservata al moderatore.");
   return user;
-}
-export function latest(data: Data, id: string): Report | undefined {
-  return data.reports
-    .filter((r) => r.device_id === id)
-    .sort(
-      (a, b) =>
-        b.observed_at.localeCompare(a.observed_at) ||
-        b.recorded_at.localeCompare(a.recorded_at),
-    )[0];
-}
-export function stationName(id: string) {
-  return stations.find((s) => s.id === id)?.name || "Stazione non disponibile";
-}
-export function deviceName(data: Data, id: string) {
-  return (
-    data.devices.find((d) => d.id === id)?.name || "Impianto non disponibile"
-  );
-}
-export function date(value: string) {
-  return new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Europe/Rome",
-  }).format(new Date(value));
-}
-export function age(value: string) {
-  const minutes = Math.max(
-    0,
-    Math.floor((Date.now() - Date.parse(value)) / 60000),
-  );
-  return minutes < 1
-    ? "Adesso"
-    : minutes < 60
-      ? `${minutes} min fa`
-      : minutes < 1440
-        ? `${Math.floor(minutes / 60)} h fa`
-        : date(value);
 }
 function checkStation(id: string) {
   if (!stations.some((s) => s.id === id))
@@ -414,4 +336,8 @@ export async function preparePhoto(file: File): Promise<Photo> {
   } finally {
     bitmap.close();
   }
+}
+
+export function stationName(id: string) {
+  return stations.find((s) => s.id === id)?.name || "Stazione non disponibile";
 }

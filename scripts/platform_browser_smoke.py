@@ -103,7 +103,13 @@ def main():
             page.get_by_role("button", name="Approva foto", exact=True)
         ).to_have_count(2)
         page.get_by_role("button", name="Approva foto", exact=True).first.click()
+        expect(
+            page.get_by_role("button", name="Approva foto", exact=True)
+        ).to_have_count(1)
         page.get_by_role("button", name="Approva foto", exact=True).click()
+        expect(
+            page.get_by_role("button", name="Approva foto", exact=True)
+        ).to_have_count(0)
         page.locator(".app-nav").get_by_role(
             "button", name="Panoramica", exact=True
         ).click()
@@ -119,6 +125,7 @@ def main():
         page.get_by_role("button", name="Invia proposta", exact=True).click()
         page.locator(".app-nav").get_by_role("button", name="Moderazione").click()
         page.get_by_role("button", name="Respingi proposta").click()
+        expect(page.locator(".toast.success")).to_contain_text("Proposta respinta")
         page.get_by_role("button", name="Decisioni precedenti").click()
         expect(page.locator(".decision-history")).to_contain_text("Proposta respinta")
         page.screenshot(path="/tmp/torino-moderation-v2.png", full_page=True)

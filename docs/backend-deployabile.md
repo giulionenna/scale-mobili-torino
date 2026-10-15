@@ -2,8 +2,8 @@
 
 14 ottobre 2026. Backend Python 0.2.0, API FastAPI e MCP, adattatori DynamoDB/S3,
 Terraform e workflow manuali. **Nessuna risorsa applicativa AWS è stata creata.**
-La demo Sites rimane una simulazione browser: il collegamento della nuova UI a
-queste API è il passaggio successivo.
+La demo Sites già pubblicata rimane una simulazione browser. Il frontend nella
+repository è collegato a queste API: vedi [configurazione e collaudo](frontend-collegato.md).
 
 ## Avvio immediato nell'ambiente cloud
 
@@ -31,6 +31,7 @@ sempre `SMT_MODE=aws`, con JWT Cognito verificati sul server.
 
 | Operazione | Endpoint principale | Accesso |
 | --- | --- | --- |
+| Home pubblica: catalogo, stati e disponibilità | `GET /api/overview` | Pubblico; nessuna statistica riservata |
 | Stazioni e impianti | `GET /api/stations`, `/api/stations/{id}/devices` | Pubblico |
 | Scheda, stato e storico | `GET /api/devices/{id}`, `/status`, `/history` | Pubblico |
 | Stream | `GET /api/feed` | Pubblico; foto solo approvate |
@@ -211,5 +212,4 @@ per account/minuto e API Gateway applica throttling; non è un sistema completo
 di prevenzione abuso per una release pubblica.
 
 Per la release serviranno prove AWS e client reali, misure di latenza/consumo,
-strategie per volumi superiori, export/ripristino amministrativo e integrazione
-della UI nuova. Nessuna di queste verifiche viene dichiarata già eseguita.
+strategie per volumi superiori ed export/ripristino amministrativo. Nessuna di queste verifiche viene dichiarata già eseguita.

@@ -1,5 +1,5 @@
-import { latest } from "./platform-demo";
-import type { Data, DeviceStatus } from "./platform-demo";
+import { latest } from "./platform-model";
+import type { Data, DeviceStatus } from "./platform-model";
 
 const stopped = (status: DeviceStatus) =>
   status === "guasta" || status === "manutenzione";
@@ -7,6 +7,53 @@ const known = (status?: DeviceStatus) =>
   !!status && status !== "non_verificabile";
 
 export function overviewFor(data: Data | null, now = Date.now()) {
+  if (data?.availability) {
+    const snapshot = data.statistics;
+    const comparable = (snapshot?.alignment.items || []).flatMap((item) => {
+      const device = data.devices.find((d) => d.id === item.device_id);
+      return device ? [device] : [];
+    });
+    const incidents = (rows: import("./platform-model").Incident[]) =>
+      rows.flatMap((row) => {
+        const device = data.devices.find((d) => d.id === row.device_id);
+        if (!device) return [];
+        const base = {
+          id: "",
+          device_id: device.id,
+          station_id: device.station_id,
+          description: "",
+          author_id: "",
+          author_name: "",
+          status: row.status,
+          recorded_at: row.latest_observed_at,
+        };
+        return [
+          {
+            device,
+            latest: { ...base, observed_at: row.latest_observed_at },
+            first: { ...base, observed_at: row.first_observed_at },
+            count: row.observation_count,
+            firstKnown: row.first_known,
+            recent: true,
+          },
+        ];
+      });
+    return {
+      comparable,
+      differences: comparable.filter(
+        (d) =>
+          snapshot!.alignment.items.find((r) => r.device_id === d.id)
+            ?.aligned === false,
+      ),
+      aligned: snapshot?.alignment.aligned || 0,
+      alignment:
+        snapshot?.alignment.percentage == null
+          ? "—"
+          : `${snapshot.alignment.percentage}%`,
+      newStops: incidents(snapshot?.incidents.new_stops || []),
+      streaks: incidents(snapshot?.incidents.streaks || []),
+    };
+  }
   const comparable =
     data?.devices.filter(
       (device) =>

@@ -539,6 +539,26 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
     def availability(self):
         devices = self.catalog()
         states = [self.store.get_state(d["escalator_id"]).get("community") for d in devices]
+        return self._availability(devices, states)
+
+    def public_overview(self):
+        devices = [
+            device for station in self.stations() for device in self.devices(station["station_id"])
+        ]
+        if len(devices) > self.settings.max_catalog_devices:
+            raise DomainError("Censimento oltre il limite del prototipo", 503)
+        states = {device["device_id"]: self.status(device["device_id"]) for device in devices}
+        return {
+            "stations": self.stations(),
+            "devices": devices,
+            "states": states,
+            "availability": self._availability(
+                devices, [state["community"] for state in states.values()]
+            ),
+        }
+
+    @staticmethod
+    def _availability(devices, states):
         working = sum(bool(s and s["status"] == "funzionante") for s in states)
         return {
             "total": len(devices),

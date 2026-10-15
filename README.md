@@ -14,6 +14,7 @@ Piattaforma civica indipendente per scale mobili e ascensori della metropolitana
 6. [Verifica AWS e configurazione di rete](docs/verifica-iniziale-aws.md)
 7. [Interfaccia, segnalazioni e proposte aggiornate](docs/specifiche-interfaccia.md)
 8. [Backend: avvio, contratti, collaudo e deploy successivo](docs/backend-deployabile.md)
+9. [Frontend collegato alle API: modalità e collaudo](docs/frontend-collegato.md)
 
 Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC costituiscono l'impostazione proposta. Le prove devono verificare concretamente funzionamento e consumo. Regione proposta: Milano, `eu-south-1`.
 
@@ -25,7 +26,19 @@ SMT_MODE=demo uv run --project backend uvicorn scale_mobili.app:app --host 127.0
 ```
 
 Contratto interattivo su `/docs`; backend in memoria per la prova immediata.
-La nuova UI pubblicata resta una demo browser separata dalle API.
+Il frontend della repository è ora collegato alle API: home pubblica, login,
+segnalazioni con foto, proposte e moderazione. Il sito Sites già pubblicato resta
+una demo browser separata; questo incremento non lo modifica e non crea risorse AWS.
+
+Collaudo completo nel cloud, con Chromium disponibile nell’ambiente:
+
+```bash
+uv run --project backend python scripts/frontend_api_check.py
+```
+
+Il comando avvia frontend, API ed emulatori DynamoDB/S3, prova i flussi dal browser
+e li arresta al termine. Per l’avvio interattivo e le modalità di autenticazione,
+vedi il [runbook del frontend collegato](docs/frontend-collegato.md).
 
 ## Requisiti essenziali
 
