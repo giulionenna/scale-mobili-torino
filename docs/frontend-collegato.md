@@ -1,11 +1,9 @@
 # Frontend collegato alle API
 
-15 ottobre 2026. Implementazione nella repository, senza deploy AWS. La CI della
-PR sul precedente commit `8f275c2` è riuscita su GitHub. Questo incremento aggiunge
-il collaudo browser delle API alla CI, senza credenziali AWS.
-
-Il sito Sites già pubblicato resta la demo precedente. La nuova versione viene
-verificata nell’ambiente cloud di sviluppo e pubblicata come codice nella PR.
+15 ottobre 2026. Frontend collegato alle API AWS e pubblicato sul sito Sites
+privato esistente. Login/rinnovo Cognito, invio dal browser con upload S3 reale,
+moderazione e persistenza sono collaudati; [esiti e limiti](collaudo-aws.md).
+La CI usa emulatori e non riceve credenziali AWS.
 
 ## Avvio interattivo nel cloud
 
@@ -106,12 +104,13 @@ crea soltanto dati sintetici e verifica:
 - client OAuth con endpoint intercettati: PKCE, state, ritorno alla pagina richiesta,
   rinnovo e rifiuto di callback non richieste. Non equivale a Cognito reale.
 
-Verificati anche 64 test backend, Ruff, controllo Svelte senza errori o warning e
+Verificati anche 71 test backend, Ruff, controllo Svelte senza errori o warning e
 build statica. La demo browser mantiene i collaudi della home pubblica e dei flussi
 di segnalazione/moderazione, con attese aggiornate per le operazioni asincrone.
 
-DynamoDB/S3 reali, login e rinnovo Cognito reali, coerenza degli indici, latenza e
-consumi restano da provare dopo l’attivazione AWS concordata. La CI non esegue deploy.
+DynamoDB/S3 reali, login/rinnovo Cognito, API e SDK MCP sono verificati anche
+in AWS. Misure di latenza iniziali e limiti del collaudo sono nel [rapporto reale](collaudo-aws.md).
+Non sono prove di carico o di failover; la CI non esegue deploy.
 
 
 Il callback Cognito usa `/auth/cognito`: Sites riserva `/callback` al proprio

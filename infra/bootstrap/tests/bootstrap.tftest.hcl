@@ -56,6 +56,12 @@ run "isolated_bootstrap" {
     error_message = "Solo il deploy deve poter applicare i tag durante CreateStage."
   }
   assert {
+    condition = alltrue([for role in ["plan", "deploy"] : alltrue([for action in ["cognito-idp:DescribeManagedLoginBranding", "cognito-idp:DescribeManagedLoginBrandingByClient", "cognito-idp:ListUserPoolClients"] : anytrue([for statement in jsondecode(aws_iam_role_policy.github[role].policy).Statement :
+      contains(statement.Action, action)
+    ])])])
+    error_message = "Il refresh dello stile gestito enumera i client e legge il branding per client nel pool."
+  }
+  assert {
     condition     = length(aws_s3_bucket_lifecycle_configuration.state.rule) == 2 && alltrue([for rule in aws_s3_bucket_lifecycle_configuration.state.rule : rule.filter[0].prefix == "scale-mobili/prototype/terraform.tfstate" ? length(rule.expiration) == 0 : rule.expiration[0].days == 7])
     error_message = "I vecchi bundle devono scadere senza eliminare lo stato Terraform corrente."
   }

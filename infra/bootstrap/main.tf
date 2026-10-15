@@ -167,7 +167,7 @@ locals {
     # Il provider legge i metadati dopo GetParameter, anche con value_wo.
     # DescribeParameters non supporta autorizzazioni per ARN di parametro.
     { Effect = "Allow", Action = ["ssm:DescribeParameters"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } },
-    { Effect = "Allow", Action = ["cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeResourceServer", "cognito-idp:DescribeManagedLoginBranding", "cognito-idp:DescribeManagedLoginBrandingByClient", "cognito-idp:GetGroup", "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:ListTagsForResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
+    { Effect = "Allow", Action = ["cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeResourceServer", "cognito-idp:DescribeManagedLoginBranding", "cognito-idp:DescribeManagedLoginBrandingByClient", "cognito-idp:ListUserPoolClients", "cognito-idp:GetGroup", "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:ListTagsForResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
     { Effect = "Allow", Action = ["cognito-idp:DescribeUserPoolDomain"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } },
     { Effect = "Allow", Action = ["apigateway:GET"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
     { Effect = "Allow", Action = ["logs:DescribeLogGroups", "logs:ListTagsForResource"], Resource = "*" },

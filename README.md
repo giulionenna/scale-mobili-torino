@@ -1,8 +1,8 @@
 # Scale Mobili Torino
 
-Piattaforma civica indipendente per scale mobili e ascensori della metropolitana di Torino. Raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. Backend del prototipo eseguibile, pacchetto Lambda e Terraform completi per i flussi principali; **nessuna risorsa applicativa AWS creata**.
+Piattaforma civica indipendente per scale mobili e ascensori della metropolitana di Torino. Raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. Il prototipo è distribuito su AWS Milano e collegato al sito privato; **censimento, osservazioni e fotografie di collaudo restano sintetici**.
 
-[Apri l'anteprima privata interattiva](https://scale-mobili-torino-prototipo.tender-tapir-0169.chatgpt.site). Pubblicata con Sites: usa dati fittizi e accesso simulato, conserva le segnalazioni soltanto nella sessione del browser e non è collegata al backend AWS.
+[Apri l'anteprima privata interattiva](https://scale-mobili-torino-prototipo.tender-tapir-0169.chatgpt.site). Pubblicata con Sites: usa API AWS, login Cognito e persistenza DynamoDB/S3. Segnalazioni, proposte e foto passano dai controlli del backend. [Esiti del collaudo reale](docs/collaudo-aws.md).
 
 ## Da leggere
 
@@ -16,10 +16,11 @@ Piattaforma civica indipendente per scale mobili e ascensori della metropolitana
 8. [Backend: avvio, contratti, collaudo e deploy successivo](docs/backend-deployabile.md)
 9. [Frontend collegato alle API: modalità e collaudo](docs/frontend-collegato.md)
 10. [Primo deploy AWS e controllo dei costi](docs/primo-deploy-e-costi.md)
+11. [Deploy e collaudo AWS reale](docs/collaudo-aws.md)
 
-Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC costituiscono l'impostazione proposta. Le prove devono verificare concretamente funzionamento e consumo. Regione proposta: Milano, `eu-south-1`.
+Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC sono distribuiti e collaudati nel prototipo. Regione: Milano, `eu-south-1`.
 
-La repository contiene API e MCP condivisi, JWT Cognito, segnalazioni/rettifiche, proposte e foto moderate, archivio delle fonti, statistiche pubbliche/riservate e censimento con alias. La demo backend usa quattro stazioni e nove impianti fittizi. DynamoDB/S3 e persistenza tra riavvii API sono collaudati con emulatori HTTP; lo stack e il blocco budget sono verificati con provider Terraform simulato. Login Cognito, deploy, consumi e client MCP reali saranno verificati dopo l'attivazione autorizzata.
+La repository contiene API e MCP condivisi, JWT Cognito, segnalazioni/rettifiche, proposte e foto moderate, archivio delle fonti, statistiche pubbliche/riservate e censimento con alias. La demo backend usa quattro stazioni e nove impianti fittizi. DynamoDB/S3 e persistenza tra riavvii API sono collaudati con emulatori HTTP; lo stack e il blocco budget sono verificati con provider Terraform simulato. Deploy, login/rinnovo Cognito, API e SDK MCP sono verificati anche su AWS reale; il client nativo ChatGPT resta da collaudare. Consumi e fatturazione hanno ritardi di registrazione.
 
 ```bash
 uv sync --project backend --frozen
@@ -28,8 +29,8 @@ SMT_MODE=demo uv run --project backend uvicorn scale_mobili.app:app --host 127.0
 
 Contratto interattivo su `/docs`; backend in memoria per la prova immediata.
 Il frontend della repository è ora collegato alle API: home pubblica, login,
-segnalazioni con foto, proposte e moderazione. Il sito Sites già pubblicato resta
-una demo browser separata; questo incremento non lo modifica e non crea risorse AWS.
+segnalazioni con foto, proposte e moderazione. Il sito Sites pubblicato usa queste API in modalità AWS, senza login di sviluppo
+o archiviazione demo nel browser; mantiene l'accesso privato esistente.
 
 Collaudo completo nel cloud, con Chromium disponibile nell’ambiente:
 
