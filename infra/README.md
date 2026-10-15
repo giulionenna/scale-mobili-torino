@@ -1,4 +1,4 @@
-# Stack del backend, preparato senza deploy
+# Stack del backend distribuito su AWS
 
 Terraform 1.14.6, provider AWS 6.68.0 bloccato. Modulo principale: DynamoDB/GSI,
 Lambda API e worker, HTTP API/MCP, Cognito, S3 privato, SSM, IAM e log. Scheduler
@@ -15,12 +15,12 @@ Il provider legge anche configurazione MFA Cognito e code-signing Lambda.
 `CreateUserPool` e `DescribeUserPoolDomain` non supportano ARN specifici: la
 creazione è vincolata a regione e tag Project/Environment, la lettura alla regione.
 
-Il 15 ottobre è stato preparato e ispezionato un piano reale privato del solo
-bootstrap: undici creazioni, nessuna modifica o eliminazione, riuso del provider
-OIDC esistente. Il bootstrap è stato applicato; il suo stato è fuori dalla repo
-e nel bucket privato. Piano applicativo reale privato: 37 creazioni, non applicate
-per il blocco GitHub su environment, variabili e segreti (HTTP 403). I test Terraform usano
-`mock_provider aws`; il loro apply è soltanto una simulazione.
+Il 15 ottobre 2026 bootstrap e stack applicativo sono stati distribuiti tramite
+workflow manuali OIDC. Stato e piani restano privati; il frontend Sites esistente
+è collegato alle API. [Esiti, provenienza e limiti del collaudo](../docs/collaudo-aws.md).
+I test Terraform usano `mock_provider aws`: il loro apply resta una simulazione.
+Il refresh del branding Cognito legge anche `ListUserPoolClients` e
+`DescribeManagedLoginBrandingByClient`, con permessi di metadati sui pool.
 
 ```bash
 python scripts/build_lambda.py
@@ -47,7 +47,7 @@ con OIDC, environment GitHub e verifica degli hash del commit revisionato.
 Procedura completa, variabili, prove e limiti nel
 [runbook del backend](../docs/backend-deployabile.md).
 
-Configurazione di costo ridotto: Cognito Lite/Hosted UI classica, concorrenza
+Configurazione di costo ridotto: Cognito Essentials/managed login v2 con resource binding MCP, concorrenza
 Lambda condivisa (`reserved_concurrency=-1`), log WARN con retention di un giorno, API 2 richieste/s
 con burst 10 e scheduler spenti. Vecchi bundle/piani scadono dopo sette giorni;
 lo stato Terraform corrente resta conservato.
@@ -56,5 +56,5 @@ Il deploy è autorizzato entro il target di pochi centesimi per collaudo e uso
 leggero. Rete, regione e tariffe sono ora verificate. L'utente ha autorizzato
 l'avvio con la quota Lambda esistente di 10, senza riserve per funzione.
 `LAMBDA_RESERVED_CONCURRENCY` nelle variabili GitHub permette di attivarle in
-futuro dopo la verifica della quota. Sono state create solo risorse di bootstrap. Vedi
+futuro dopo la verifica della quota. Bootstrap e applicazione sono distribuiti e collaudati. Vedi
 [il rapporto del primo deploy](../docs/primo-deploy-e-costi.md).

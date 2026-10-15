@@ -1,13 +1,10 @@
 # Backend del prototipo e percorso di deploy
 
-14 ottobre 2026. Backend Python 0.2.0, API FastAPI e MCP, adattatori DynamoDB/S3,
-Terraform e workflow manuali. **Nessuna risorsa applicativa AWS è stata creata.**
-Bootstrap AWS applicato il 15 ottobre: stato privato/versionato e ruoli OIDC
-dedicati. Il piano applicativo privato è pronto, ma l'integrazione GitHub non
-può creare environment, variabili e segreti (HTTP 403). Dettagli nel
-[rapporto del primo deploy](primo-deploy-e-costi.md).
-La demo Sites già pubblicata rimane una simulazione browser. Il frontend nella
-repository è collegato a queste API: vedi [configurazione e collaudo](frontend-collegato.md).
+15 ottobre 2026. Backend Python 0.2.0, API FastAPI e MCP, DynamoDB/S3 e
+Terraform distribuiti su AWS tramite workflow manuali OIDC. Anche il frontend
+Sites privato usa queste API. Login, rinnovo, foto, proposte e SDK MCP sono
+collaudati: [esiti reali e limiti](collaudo-aws.md), [costi](primo-deploy-e-costi.md).
+I comandi demo/local sotto restano disponibili per lo sviluppo senza AWS.
 
 ## Avvio immediato nell'ambiente cloud
 
@@ -159,10 +156,10 @@ I test usano **mock_provider aws**: anche il loro comando `apply` è simulato e 
 contatta AWS. Il bootstrap ha una validazione separata. Le CI GitHub sono preparate;
 non si attribuisce loro un esito prima dell'esecuzione sui runner.
 
-Esiti nell'ambiente cloud: 64 test Python passati; controllo e formattazione Ruff
+Esiti nell'ambiente cloud: 71 test Python passati; controllo e formattazione Ruff
 riusciti; API HTTP con DynamoDB/S3 emulati e riavvio API riusciti; bundle isolato
-importato e invocato ripetutamente; validazioni Terraform e cinque test simulati
-tra stack e bootstrap riusciti. Frontend: check senza errori/warning e build
+importato e invocato ripetutamente; validazioni Terraform, cinque test stack e quattro bootstrap simulati
+riusciti. Frontend: check senza errori/warning e build
 riusciti dopo l'aggiornamento dello scope OAuth. Restano due deprecazioni upstream
 nei test Python (TestClient/httpx e ciclo eventi Mangum), senza errori funzionali.
 
@@ -186,8 +183,8 @@ un piano successivo. `budget_reviewed=false` blocca il piano.
 
 1. Revisionare `infra/bootstrap`, salvare il suo stato fuori dal repository e
    fornire il repository GitHub esatto; ispezionare prima un eventuale provider OIDC.
-2. Configurare l'environment GitHub `aws-prototype`, limitato a `main`, con revisione
-   richiesta per il deploy. Impostare variabili `AWS_PLAN_ROLE_ARN`, `AWS_DEPLOY_ROLE_ARN`,
+2. Configurare l'environment GitHub `aws-prototype`, limitato a `main`. L’utente ha rimosso Required reviewers; i workflow
+   restano manuali e il piano esatto va revisionato prima dell’apply. Impostare variabili `AWS_PLAN_ROLE_ARN`, `AWS_DEPLOY_ROLE_ARN`,
    `TF_STATE_BUCKET`, `RUNTIME_PERMISSIONS_BOUNDARY_ARN`, `FRONTEND_URL`, `PROJECT_PREFIX`
    e, per rotazioni deliberate, `CURSOR_SECRET_VERSION`. Il segreto casuale di almeno
    32 caratteri va in `SMT_CURSOR_SECRET`, mai in un tfvars o nella repository.

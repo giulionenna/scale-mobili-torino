@@ -2,17 +2,17 @@
 
 15 ottobre 2026. L’utente autorizza il deploy con obiettivo di **pochi centesimi
 per il primo collaudo** e poi pochi centesimi con poco traffico. Se il servizio
-cresce, il dimensionamento può essere rivisto. Il bootstrap AWS è stato applicato;
-le risorse applicative non sono ancora state create.
+cresce, il dimensionamento può essere rivisto. Bootstrap e risorse applicative sono distribuiti; il sito privato è collegato
+alle API AWS. [Esiti del collaudo reale](collaudo-aws.md).
 
-## Stato verificato
+## Cronologia del preflight e del primo deploy
 
 - `STS GetCallerIdentity` riuscito: credenziali funzionanti per identificare un
   utente IAM. Non dimostra permessi di creazione delle risorse.
 - Nel nuovo ambiente la policy locale è `unrestricted`; la revisione corrente
   conferma enforcement attivo e credenziali pronte. Le chiamate effettive hanno
   verificato gli endpoint AWS necessari al preflight.
-- Milano è `ENABLED`. Inventario regionale paginato: nessuna tabella DynamoDB,
+- Milano è `ENABLED`. Inventario iniziale regionale paginato: nessuna tabella DynamoDB,
   nessuna HTTP API, tre Lambda, un pool Cognito, tre gruppi log e nessuno scheduler.
   Le risorse preesistenti non sono state modificate.
 - Piano account Free attivo e crediti residui verificati tramite
@@ -20,7 +20,7 @@ le risorse applicative non sono ancora state create.
   Free Tier segnala margine per Lambda e log; la stima sotto non lo sottrae.
 - Il provider OIDC GitHub esistente ha URL e audience corretti. La simulazione
   IAM consente le principali operazioni di bootstrap e deploy; non dimostra
-  che ogni futura creazione riuscirà. Environment GitHub `aws-prototype` assente.
+  che ogni futura creazione riuscirà. Environment GitHub `aws-prototype` assente al momento del preflight.
 - **Quota Lambda:** quota regionale effettiva 10, tutte non riservate. Per tre
   nuove riserve da uno occorrono almeno 103 esecuzioni non riservate prima del
   deploy, perché AWS ne mantiene almeno 100. Service Quotas conferma quota 10
@@ -92,14 +92,15 @@ List è 0,015 USD/MAU: con due MAU aggiunge 0,019 USD alle ipotesi precedenti.
 La previsione passa da 0,01955 a 0,03855 USD per la prova e da 0,05444 a
 0,07344 USD/mese leggero, arrotondata a 0,04 e 0,08 USD prima di crediti e
 inclusioni. Nessun canone fisso aggiuntivo o migrazione dati; l'obiettivo
-concordato di pochi centesimi resta rispettato. Il collaudo di audience,
-rinnovo e scritture MCP con la configurazione aggiornata rimane da eseguire.
+concordato di pochi centesimi resta rispettato. Audience, rinnovo e scritture MCP con la configurazione aggiornata sono ora
+verificati su AWS: [rapporto del collaudo](collaudo-aws.md). Gli scope usano
+l’URL MCP come prefisso e il callback Sites è `/auth/cognito`.
 
 Riferimenti: [resource binding Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-define-resource-servers.html),
 [managed login Essentials](https://docs.aws.amazon.com/cognito/latest/developerguide/feature-plans-features-essentials.html),
 [prezzi Cognito](https://aws.amazon.com/cognito/pricing/).
 
-## Configurazione preparata per uso leggero
+## Configurazione distribuita per uso leggero
 
 | Voce | Impostazione |
 | --- | --- |
