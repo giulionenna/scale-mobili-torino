@@ -40,6 +40,16 @@ run "isolated_bootstrap" {
     error_message = "CreateUserPool non supporta ARN di risorsa: vincolare la creazione ai tag e alla regione del progetto."
   }
   assert {
+    condition = alltrue([for role in ["plan", "deploy"] : anytrue([for statement in jsondecode(aws_iam_role_policy.github[role].policy).Statement : try(
+      contains(statement.Action, "ssm:DescribeParameters") && statement.Resource == "*" && statement.Condition.StringEquals["aws:RequestedRegion"] == "eu-south-1", false
+    )])])
+    error_message = "Il refresh SSM richiede DescribeParameters limitato alla regione, per entrambi i ruoli OIDC."
+  }
+  assert {
+    condition     = anytrue([for statement in jsondecode(aws_iam_role_policy.github["deploy"].policy).Statement : contains(statement.Action, "apigateway:TagResource")]) && !anytrue([for statement in jsondecode(aws_iam_role_policy.github["plan"].policy).Statement : contains(statement.Action, "apigateway:TagResource")])
+    error_message = "Solo il deploy deve poter applicare i tag durante CreateStage."
+  }
+  assert {
     condition     = length(aws_s3_bucket_lifecycle_configuration.state.rule) == 2 && alltrue([for rule in aws_s3_bucket_lifecycle_configuration.state.rule : rule.filter[0].prefix == "scale-mobili/prototype/terraform.tfstate" ? length(rule.expiration) == 0 : rule.expiration[0].days == 7])
     error_message = "I vecchi bundle devono scadere senza eliminare lo stato Terraform corrente."
   }

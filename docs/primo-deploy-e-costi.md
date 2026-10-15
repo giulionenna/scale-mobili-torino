@@ -48,6 +48,16 @@ le risorse applicative non sono ancora state create.
 - Le policy runtime e il boundary ora includono `dynamodb:ConditionCheckItem`:
   le condizioni nelle transazioni richiedono questo permesso oltre a Put/Update.
   Le verifiche con emulatori non dimostravano la correttezza dei permessi IAM.
+- Il piano OIDC successivo è riuscito. Il primo apply ha creato parte dello
+  stack e salvato lo stato, poi si è fermato: mancavano `ssm:DescribeParameters`
+  nel refresh del parametro write-only e `apigateway:TagResource` durante
+  CreateStage con i tag predefiniti. CloudTrail ha confermato entrambi i rifiuti.
+  Il bootstrap ora autorizza i metadati SSM soltanto nella regione prevista e i
+  tag API Gateway soltanto al ruolo deploy. Il recupero richiede un nuovo piano
+  sullo stato parziale: il precedente piano non va riapplicato.
+- In caso di errore, i workflow conservano i log Terraform soltanto nel bucket
+  privato, nello stesso prefisso dei piani con scadenza a sette giorni. Non
+  pubblicano contenuto Terraform nei log Actions o negli artifact GitHub.
 - **Limite dell'integrazione GitHub:** restituisce HTTP 403 `Resource not accessible
   by integration` per la creazione dell'environment `aws-prototype`, le variabili
   Actions e la chiave pubblica necessaria a scrivere i segreti. L'accesso ADMIN

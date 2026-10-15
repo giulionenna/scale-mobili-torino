@@ -74,6 +74,18 @@ jobs:
           aws s3 cp dist/backend-lambda.zip "$plan_prefix/backend-lambda.zip" --sse AES256 --only-show-errors
           aws s3 cp "$RUNNER_TEMP/manifest.json" "$plan_prefix/manifest.json" --sse AES256 --only-show-errors
           echo "Piano privato sul commit $GITHUB_SHA, run $GITHUB_RUN_ID. Nessuna risorsa applicata." >> "$GITHUB_STEP_SUMMARY"
+      - name: Conserva soltanto nel bucket privato i log del piano fallito
+        if: failure()
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          test -n "$STATE_BUCKET"
+          log_prefix="s3://$STATE_BUCKET/scale-mobili/prototype/plans/$GITHUB_SHA/$GITHUB_RUN_ID/failure"
+          for log in terraform-init terraform-plan; do
+            if test -f "$RUNNER_TEMP/$log.log"; then
+              aws s3 cp "$RUNNER_TEMP/$log.log" "$log_prefix/$log.log" --sse AES256 --only-show-errors
+            fi
+          done
       - name: Rimuovi piano, manifest e log temporanei
         if: always()
         run: rm -f "$RUNNER_TEMP/prototype.tfplan" "$RUNNER_TEMP/manifest.json" "$RUNNER_TEMP/terraform-init.log" "$RUNNER_TEMP/terraform-plan.log"
