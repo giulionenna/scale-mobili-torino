@@ -51,8 +51,8 @@ run "protected_backend" {
     error_message = "Identità demo vietate su Lambda."
   }
   assert {
-    condition     = !contains(jsondecode(aws_iam_role_policy.lambda["api"].policy).Statement[0].Action, "dynamodb:Scan")
-    error_message = "Il runtime API non deve poter eseguire Scan."
+    condition     = !contains(jsondecode(aws_iam_role_policy.lambda["api"].policy).Statement[0].Action, "dynamodb:Scan") && contains(jsondecode(aws_iam_role_policy.lambda["api"].policy).Statement[0].Action, "dynamodb:ConditionCheckItem")
+    error_message = "Il runtime API deve poter verificare le condizioni delle transazioni senza Scan."
   }
   assert {
     condition     = !aws_cognito_user_pool_client.web.generate_secret && aws_cognito_user_pool_client.web.allowed_oauth_flows == toset(["code"])

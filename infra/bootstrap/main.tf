@@ -36,6 +36,14 @@ variable "github_environment" {
   type    = string
   default = "aws-prototype"
 }
+variable "github_subject_prefix" {
+  type        = string
+  description = "sub_claim_prefix restituito dall'API GitHub Actions OIDC; conserva gli ID immutabili quando abilitati."
+  validation {
+    condition     = can(regex("^repo:[a-zA-Z0-9_.-]+(@[0-9]+)?/[a-zA-Z0-9_.-]+(@[0-9]+)?$", var.github_subject_prefix)) && replace(var.github_subject_prefix, "/@[0-9]+/", "") == "repo:${var.github_repository}"
+    error_message = "Usare il prefisso OIDC verificato per il repository esatto, senza wildcard."
+  }
+}
 variable "existing_oidc_provider_arn" {
   type        = string
   default     = ""
@@ -69,7 +77,7 @@ locals {
     Effect = "Allow", Principal = { Federated = local.oidc }, Action = "sts:AssumeRoleWithWebIdentity",
     Condition = { StringEquals = {
       "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:environment:${var.github_environment}"
+      "token.actions.githubusercontent.com:sub" = "${var.github_subject_prefix}:environment:${var.github_environment}"
     } }
   }] })
 }
@@ -127,7 +135,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "state" {
 resource "aws_iam_policy" "runtime_boundary" {
   name = "${var.prefix}-runtime-boundary"
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:TransactWriteItems"], Resource = concat(local.table_arns, [for arn in local.table_arns : "${arn}/index/*"]) },
+    { Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:ConditionCheckItem"], Resource = concat(local.table_arns, [for arn in local.table_arns : "${arn}/index/*"]) },
     { Effect = "Allow", Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"], Resource = ["arn:${local.partition}:s3:::${var.prefix}-photos-${local.account}/*", "arn:${local.partition}:s3:::${var.prefix}-sources-${local.account}/originals/*"] },
     { Effect = "Allow", Action = ["ssm:GetParameter"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/cursor-secret" },
     { Effect = "Allow", Action = ["kms:Decrypt"], Resource = "arn:${local.partition}:kms:${var.region}:${local.account}:key/*", Condition = { StringEquals = { "kms:ViaService" = "ssm.${var.region}.amazonaws.com", "kms:EncryptionContext:PARAMETER_ARN" = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/cursor-secret" } } },

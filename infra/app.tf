@@ -43,7 +43,7 @@ resource "aws_iam_role_policy" "lambda" {
   policy = jsonencode({ Version = "2012-10-17", Statement = concat([
     {
       Sid      = "DedicatedDynamoDB", Effect = "Allow",
-      Action   = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:TransactWriteItems"],
+      Action   = ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query", "dynamodb:ConditionCheckItem"],
       Resource = concat([for table in aws_dynamodb_table.prototype : table.arn], [for table in aws_dynamodb_table.prototype : "${table.arn}/index/*"])
     },
     { Sid = "CursorParameter", Effect = "Allow", Action = ["ssm:GetParameter"], Resource = aws_ssm_parameter.cursor.arn },
