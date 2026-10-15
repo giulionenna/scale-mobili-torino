@@ -7,7 +7,9 @@ ruoli plan/deploy e permissions boundary dedicati.
 
 Il 15 ottobre è stato preparato e ispezionato un piano reale privato del solo
 bootstrap: undici creazioni, nessuna modifica o eliminazione, riuso del provider
-OIDC esistente. Nessun apply AWS è stato eseguito. I cinque test Terraform usano
+OIDC esistente. Il bootstrap è stato applicato; il suo stato è fuori dalla repo
+e nel bucket privato. Piano applicativo reale privato: 37 creazioni, non applicate
+per il blocco GitHub su environment, variabili e segreti (HTTP 403). I test Terraform usano
 `mock_provider aws`; il loro apply è soltanto una simulazione.
 
 ```bash
@@ -35,13 +37,14 @@ con OIDC, environment GitHub e verifica degli hash del commit revisionato.
 Procedura completa, variabili, prove e limiti nel
 [runbook del backend](../docs/backend-deployabile.md).
 
-Configurazione di costo ridotto: Cognito Lite/Hosted UI classica, una esecuzione
-concorrente per funzione, log WARN con retention di un giorno, API 2 richieste/s
+Configurazione di costo ridotto: Cognito Lite/Hosted UI classica, concorrenza
+Lambda condivisa (`reserved_concurrency=-1`), log WARN con retention di un giorno, API 2 richieste/s
 con burst 10 e scheduler spenti. Vecchi bundle/piani scadono dopo sette giorni;
 lo stato Terraform corrente resta conservato.
 
 Il deploy è autorizzato entro il target di pochi centesimi per collaudo e uso
-leggero. Rete, regione e tariffe sono ora verificate; la quota Lambda effettiva
-di 10 impedisce le tre riserve da uno (servono almeno 103 non riservate prima
-del deploy). Nessuna risorsa è stata creata. Vedi
+leggero. Rete, regione e tariffe sono ora verificate. L'utente ha autorizzato
+l'avvio con la quota Lambda esistente di 10, senza riserve per funzione.
+`LAMBDA_RESERVED_CONCURRENCY` nelle variabili GitHub permette di attivarle in
+futuro dopo la verifica della quota. Sono state create solo risorse di bootstrap. Vedi
 [il rapporto del primo deploy](../docs/primo-deploy-e-costi.md).

@@ -85,11 +85,12 @@ variable "runtime_permissions_boundary_arn" {
 }
 
 variable "reserved_concurrency" {
-  type    = number
-  default = 1
+  type        = number
+  default     = -1
+  description = "-1 usa la quota regionale condivisa; 1–5 riservano capacità dopo verifica della quota AWS."
   validation {
-    condition     = var.reserved_concurrency >= 1 && var.reserved_concurrency <= 5
-    error_message = "Il prototipo consente da 1 a 5 invocazioni concorrenti."
+    condition     = var.reserved_concurrency == -1 || (var.reserved_concurrency >= 1 && var.reserved_concurrency <= 5 && floor(var.reserved_concurrency) == var.reserved_concurrency)
+    error_message = "Usare -1 per la concorrenza condivisa oppure un intero da 1 a 5 per le riserve."
   }
 }
 

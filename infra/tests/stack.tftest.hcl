@@ -67,9 +67,24 @@ run "protected_backend" {
     error_message = "I limiti a consumo devono comprendere ogni GSI."
   }
   assert {
-    condition     = aws_cognito_user_pool.users.user_pool_tier == "LITE" && aws_cognito_user_pool_domain.users.managed_login_version == 1 && alltrue([for group in aws_cloudwatch_log_group.lambda : group.retention_in_days == 1]) && alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == 1 && function.logging_config[0].application_log_level == "WARN"])
-    error_message = "Lite, log brevi e concorrenza limitata devono restare espliciti."
+    condition     = aws_cognito_user_pool.users.user_pool_tier == "LITE" && aws_cognito_user_pool_domain.users.managed_login_version == 1 && alltrue([for group in aws_cloudwatch_log_group.lambda : group.retention_in_days == 1]) && alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == -1 && function.logging_config[0].application_log_level == "WARN"])
+    error_message = "Lite, log brevi e concorrenza condivisa devono restare espliciti."
   }
+}
+
+run "future_reserved_concurrency" {
+  command = plan
+  variables { reserved_concurrency = 1 }
+  assert {
+    condition     = alltrue([for function in aws_lambda_function.backend : function.reserved_concurrent_executions == 1])
+    error_message = "Dopo l'aumento della quota deve essere possibile applicare le riserve."
+  }
+}
+
+run "reject_fractional_concurrency" {
+  command = plan
+  variables { reserved_concurrency = 1.5 }
+  expect_failures = [var.reserved_concurrency]
 }
 
 run "optional_verified_provisioned" {

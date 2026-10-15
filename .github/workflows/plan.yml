@@ -32,6 +32,7 @@ jobs:
       TF_VAR_runtime_permissions_boundary_arn: ${{ vars.RUNTIME_PERMISSIONS_BOUNDARY_ARN }}
       TF_VAR_prefix: ${{ vars.PROJECT_PREFIX || 'scale-mobili-prototype' }}
       TF_VAR_budget_reviewed: 'true'
+      TF_VAR_reserved_concurrency: ${{ vars.LAMBDA_RESERVED_CONCURRENCY || '-1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

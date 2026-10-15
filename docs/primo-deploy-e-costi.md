@@ -2,15 +2,16 @@
 
 15 ottobre 2026. L’utente autorizza il deploy con obiettivo di **pochi centesimi
 per il primo collaudo** e poi pochi centesimi con poco traffico. Se il servizio
-cresce, il dimensionamento può essere rivisto. Nessuna risorsa AWS è stata creata.
+cresce, il dimensionamento può essere rivisto. Il bootstrap AWS è stato applicato;
+le risorse applicative non sono ancora state create.
 
 ## Stato verificato
 
 - `STS GetCallerIdentity` riuscito: credenziali funzionanti per identificare un
   utente IAM. Non dimostra permessi di creazione delle risorse.
-- Nel nuovo ambiente la policy locale è `unrestricted`. Lo stato del servizio
-  riporta ancora enforcement e credenziali `unknown`, ma le chiamate effettive
-  hanno verificato gli endpoint AWS necessari al preflight.
+- Nel nuovo ambiente la policy locale è `unrestricted`; la revisione corrente
+  conferma enforcement attivo e credenziali pronte. Le chiamate effettive hanno
+  verificato gli endpoint AWS necessari al preflight.
 - Milano è `ENABLED`. Inventario regionale paginato: nessuna tabella DynamoDB,
   nessuna HTTP API, tre Lambda, un pool Cognito, tre gruppi log e nessuno scheduler.
   Le risorse preesistenti non sono state modificate.
@@ -20,18 +21,35 @@ cresce, il dimensionamento può essere rivisto. Nessuna risorsa AWS è stata cre
 - Il provider OIDC GitHub esistente ha URL e audience corretti. La simulazione
   IAM consente le principali operazioni di bootstrap e deploy; non dimostra
   che ogni futura creazione riuscirà. Environment GitHub `aws-prototype` assente.
-- **Blocco Lambda:** quota regionale effettiva 10, tutte non riservate. Per tre
+- **Quota Lambda:** quota regionale effettiva 10, tutte non riservate. Per tre
   nuove riserve da uno occorrono almeno 103 esecuzioni non riservate prima del
   deploy, perché AWS ne mantiene almeno 100. Service Quotas conferma quota 10
   modificabile e nessuna richiesta precedente. Un tentativo a 103 con
   `SupportCaseAllowed=false` è stato rifiutato: l'API richiede un valore superiore
   alla quota standard di 1.000. Nessun caso di assistenza è stato aperto.
-- Preparato e ispezionato un **piano reale privato del solo bootstrap**: undici
+  L'utente ha quindi autorizzato l'avvio **senza riserve**, condividendo la quota
+  regionale esistente anche con gli altri progetti. `reserved_concurrency=-1`
+  è il nuovo default; la quota rimane invariata e questo blocco è risolto.
+- Preparato, ispezionato e applicato un **piano reale privato del bootstrap**: undici
   creazioni, zero modifiche e zero eliminazioni; riusa il provider OIDC verificato.
-  Nessun `apply`, nessuna risorsa creata. Per questo piano è stato passato
+  Creati soltanto bucket di stato/configurazioni, boundary e ruoli/policy dedicati.
+  Stato conservato fuori dalla repository e copiato nel bucket privato versionato,
+  sotto `scale-mobili/bootstrap/terraform.tfstate`. Per questo piano è stato passato
   `budget_reviewed=true` dopo la stima; il default e i workflow restano bloccati.
-- Cinque test Terraform con provider simulato: tre stack e due bootstrap.
-  Validazioni e formattazione riuscite; nessun test crea risorse AWS.
+- Preparato e ispezionato anche un piano applicativo reale privato: 37 creazioni,
+  nessuna modifica o eliminazione, tre Lambda senza riserve e nessuno scheduler.
+  Non applicato: il deploy applicativo resta affidato ai workflow manuali OIDC.
+- **Blocco GitHub:** l'integrazione restituisce HTTP 403 `Resource not accessible
+  by integration` per la creazione dell'environment `aws-prototype`, le variabili
+  Actions e la chiave pubblica necessaria a scrivere i segreti. L'accesso ADMIN
+  dell'utente alla repository non estende i permessi del token dell'integrazione.
+  Nessun environment, variabile o segreto è stato creato. Configurarli con un
+  accesso GitHub che autorizzi queste operazioni, come descritto nel runbook;
+  non trasferire le chiavi AWS permanenti su GitHub.
+- Cinque test dello stack Terraform con provider simulato, compresa l'opzione
+  delle riserve future e il rifiuto di valori frazionari; due test bootstrap.
+  Validazioni e formattazione riuscite; nessun test crea risorse AWS. Backend:
+  70 test passati e pacchetto Lambda verificato in isolamento.
 
 ## Configurazione preparata per uso leggero
 
@@ -41,7 +59,7 @@ cresce, il dimensionamento può essere rivisto. Nessuna risorsa AWS è stata cre
 | Limiti DynamoDB | 100 unità di lettura e 20 di scrittura/s per tabella e per GSI; limiti best effort |
 | Variante provisioned | Opzionale: 7 RCU e 7 WCU totali, soltanto dopo verifica delle inclusioni residue |
 | Cognito | Piano `LITE`, Hosted UI classica, utenti creati dall’amministratore; non si attivano funzioni Plus, SMS o login machine-to-machine |
-| Lambda | API, aggregatore e collector a consumo, 512 MB; concorrenza riservata 1 per funzione; timeout 15/30/30 secondi |
+| Lambda | API, aggregatore e collector a consumo, 512 MB; concorrenza condivisa nella quota regionale 10; timeout 15/30/30 secondi |
 | HTTP API | 2 richieste/s, burst 10: consente il caricamento delle schede del prototipo |
 | Log | Livello WARN, retention di un giorno |
 | Processi periodici | Disattivati; primo seed e ricalcolo controllati manualmente |
@@ -124,11 +142,14 @@ con azioni a pagamento. GitHub Actions usa runner standard della repository
 pubblica e il frontend riutilizzerebbe il progetto Sites esistente; nessun nuovo
 servizio di hosting o dominio viene acquistato.
 
-La stima rientra nell'obiettivo autorizzato; il blocco attuale è la concorrenza,
-non la rete. Prima di applicare il bootstrap, risolvere la quota e ricontrollare
-il piano. Non rimuovere le riserve da uno per aggirare il vincolo. L'apertura di
-un caso AWS Support richiede l'autorizzazione dell'utente a contattare il supporto;
-non è stata richiesta né eseguita una conversione dell'account a un piano Paid.
+La stima rientra nell'obiettivo autorizzato. La scelta autorizzata di concorrenza
+condivisa consente di procedere con quota 10: a parità di lavoro il prezzo resta
+uguale, ma vengono meno la capacità garantita e il tetto individuale per funzione.
+Un picco può occupare la quota degli altri progetti o essere rifiutato quando
+questa è già esaurita. Per le riserve future basta verificare la quota e impostare
+`LAMBDA_RESERVED_CONCURRENCY=1` nelle variabili GitHub prima di un nuovo piano:
+nessuna migrazione dati. Non sono stati aperti casi AWS Support o richiesti
+cambi di piano dell'account.
 
 Dopo il primo collaudo verificare fatturazione e consumo con il
 ritardo dichiarato dal servizio; un costo non ancora registrato non vale zero.
@@ -173,8 +194,9 @@ Dopo la ripubblicazione:
 
 1. Rileggere lo stato corrente con `cloud_environment.environment_status`.
 2. Eseguire `uv run --project backend python scripts/aws_preflight.py` e verificare
-   regione, inventario, benefici e concorrenza disponibile. Per riservare tre
-   esecuzioni deve restare anche la quota minima non riservata richiesta da AWS.
+   regione, inventario, benefici e concorrenza condivisa disponibile. Per verificare
+   le riserve future usare `--reserved-concurrency 1`: tre nuove riserve richiedono
+   almeno 103 esecuzioni non riservate prima del deploy.
 3. Verificare le tariffe e completare la tabella di stima; definire eventuali
    notifiche di budget con un destinatario concordato.
 4. Preparare il piano privato del bootstrap dedicato, ispezionarlo e applicarlo

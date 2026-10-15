@@ -2,6 +2,10 @@
 
 14 ottobre 2026. Backend Python 0.2.0, API FastAPI e MCP, adattatori DynamoDB/S3,
 Terraform e workflow manuali. **Nessuna risorsa applicativa AWS è stata creata.**
+Bootstrap AWS applicato il 15 ottobre: stato privato/versionato e ruoli OIDC
+dedicati. Il piano applicativo privato è pronto, ma l'integrazione GitHub non
+può creare environment, variabili e segreti (HTTP 403). Dettagli nel
+[rapporto del primo deploy](primo-deploy-e-costi.md).
 La demo Sites già pubblicata rimane una simulazione browser. Il frontend nella
 repository è collegato a queste API: vedi [configurazione e collaudo](frontend-collegato.md).
 
@@ -175,7 +179,10 @@ Prima dell'attivazione verificare regione Milano, permessi, quote residue e tutt
 le voci: DynamoDB, Lambda, API, Cognito, S3, log, SSM/KMS, stato e piani. La modalità predefinita di DynamoDB è a consumo con limiti espliciti su tabelle
 e indici. La modalità provisioned opzionale alloca 7 RCU/7 WCU e richiede
 la verifica della copertura residua; nessuna delle due garantisce costo zero. La concorrenza Lambda riservata
-richiede quota disponibile nell'account. `budget_reviewed=false` blocca il piano.
+richiede quota disponibile nell'account. Per la prova è stato autorizzato il default
+`reserved_concurrency=-1`, che condivide la quota regionale 10 con gli altri progetti.
+`LAMBDA_RESERVED_CONCURRENCY` è la variabile GitHub per cambiare questa scelta in
+un piano successivo. `budget_reviewed=false` blocca il piano.
 
 1. Revisionare `infra/bootstrap`, salvare il suo stato fuori dal repository e
    fornire il repository GitHub esatto; ispezionare prima un eventuale provider OIDC.

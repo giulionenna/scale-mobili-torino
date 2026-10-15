@@ -4,6 +4,7 @@ Esecuzione: uv run --project backend python scripts/aws_preflight.py
 La policy del proxy resta vincolante. Gli endpoint non consentiti sono saltati.
 """
 
+import argparse
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,7 +31,20 @@ def policy():
     )
 
 
-def main():
+def concurrency_readiness(unreserved, reserved_per_function):
+    required = 3 * max(reserved_per_function, 0)
+    return {
+        "mode": "shared" if reserved_per_function == -1 else "reserved",
+        "reserved_per_function": reserved_per_function,
+        "required_new_reservations": required,
+        "required_unreserved_before_deploy": 100 + required if required else 1,
+        "configured_concurrency_supported": (
+            unreserved >= 100 + required if required else unreserved > 0
+        ),
+    }
+
+
+def main(reserved_concurrency=-1):
     hosts, unrestricted = policy()
     results = {}
 
@@ -186,11 +200,9 @@ def main():
             "function_count": r.get("AccountUsage", {}).get("FunctionCount"),
             "code_storage_bytes": r.get("AccountUsage", {}).get("TotalCodeSize"),
             "minimum_unreserved_for_reservations": 100,
-            # Tre funzioni nuove, con una esecuzione riservata ciascuna.
-            "required_new_reservations": 3,
-            "required_unreserved_before_deploy": 103,
-            "reservations_supported": (
-                r["AccountLimit"]["UnreservedConcurrentExecutions"] >= 103
+            **concurrency_readiness(
+                r["AccountLimit"]["UnreservedConcurrentExecutions"],
+                reserved_concurrency,
             ),
         },
     )
@@ -235,8 +247,8 @@ def main():
     lambda_quota = results["lambda_quota"]
     if lambda_quota.get("state") != "verified_read_only":
         blockers.append("lambda_concurrency_not_verified")
-    elif not lambda_quota["reservations_supported"]:
-        blockers.append("lambda_reserved_concurrency_unavailable")
+    elif not lambda_quota["configured_concurrency_supported"]:
+        blockers.append("lambda_configured_concurrency_unavailable")
     print(
         json.dumps(
             {
@@ -253,4 +265,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--reserved-concurrency", type=int, choices=[-1, 1, 2, 3, 4, 5], default=-1
+    )
+    main(parser.parse_args().reserved_concurrency)
