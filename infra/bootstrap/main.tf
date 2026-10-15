@@ -164,6 +164,9 @@ locals {
     { Effect = "Allow", Action = ["s3:GetBucket*", "s3:ListBucket"], Resource = "arn:${local.partition}:s3:::${var.prefix}-*" },
     { Effect = "Allow", Action = ["iam:GetRole", "iam:GetRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies"], Resource = local.runtime_roles },
     { Effect = "Allow", Action = ["ssm:GetParameter", "ssm:ListTagsForResource"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/*" },
+    # Il provider legge i metadati dopo GetParameter, anche con value_wo.
+    # DescribeParameters non supporta autorizzazioni per ARN di parametro.
+    { Effect = "Allow", Action = ["ssm:DescribeParameters"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } },
     { Effect = "Allow", Action = ["cognito-idp:DescribeUserPool", "cognito-idp:DescribeUserPoolClient", "cognito-idp:DescribeResourceServer", "cognito-idp:GetGroup", "cognito-idp:GetUserPoolMfaConfig", "cognito-idp:ListTagsForResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
     { Effect = "Allow", Action = ["cognito-idp:DescribeUserPoolDomain"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region } } },
     { Effect = "Allow", Action = ["apigateway:GET"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
@@ -180,7 +183,7 @@ locals {
     { Effect = "Allow", Action = ["ssm:PutParameter", "ssm:DeleteParameter", "ssm:AddTagsToResource", "ssm:RemoveTagsFromResource"], Resource = "arn:${local.partition}:ssm:${var.region}:${local.account}:parameter/${var.prefix}/*" },
     { Effect = "Allow", Action = ["cognito-idp:CreateUserPool"], Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = var.region, "aws:RequestTag/Project" = "scale-mobili-torino", "aws:RequestTag/Environment" = "prototype" } } },
     { Effect = "Allow", Action = ["cognito-idp:UpdateUserPool", "cognito-idp:DeleteUserPool", "cognito-idp:CreateUserPoolClient", "cognito-idp:UpdateUserPoolClient", "cognito-idp:DeleteUserPoolClient", "cognito-idp:CreateUserPoolDomain", "cognito-idp:DeleteUserPoolDomain", "cognito-idp:CreateResourceServer", "cognito-idp:UpdateResourceServer", "cognito-idp:DeleteResourceServer", "cognito-idp:CreateGroup", "cognito-idp:UpdateGroup", "cognito-idp:DeleteGroup", "cognito-idp:TagResource", "cognito-idp:UntagResource"], Resource = "arn:${local.partition}:cognito-idp:${var.region}:${local.account}:userpool/*" },
-    { Effect = "Allow", Action = ["apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
+    { Effect = "Allow", Action = ["apigateway:POST", "apigateway:PUT", "apigateway:PATCH", "apigateway:DELETE", "apigateway:TagResource"], Resource = "arn:${local.partition}:apigateway:${var.region}::*" },
     { Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:TagResource", "logs:UntagResource"], Resource = "arn:${local.partition}:logs:${var.region}:${local.account}:log-group:/aws/lambda/${var.prefix}-*:*" },
     { Effect = "Allow", Action = ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule", "scheduler:TagResource", "scheduler:UntagResource"], Resource = "arn:${local.partition}:scheduler:${var.region}:${local.account}:schedule/default/${var.prefix}-*" }
   ]
