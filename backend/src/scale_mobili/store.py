@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 from threading import RLock
 
@@ -6,6 +7,7 @@ from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.types import TypeSerializer
 from botocore.exceptions import ClientError
 
+from scale_mobili.domain import DomainError
 from scale_mobili.keys import escalator, event_key, idempotency_key
 
 
@@ -55,6 +57,9 @@ class MemoryStore:
     def get_state(self, escalator_id):
         with self.lock:
             return deepcopy(self.states.get(escalator_id, {"version": 0, "community": None}))
+
+    def get_states(self, device_ids):
+        return {identifier: self.get_state(identifier) for identifier in device_ids}
 
     def history(self, escalator_id, upper, after, limit):
         with self.lock:
@@ -130,13 +135,41 @@ class DynamoStore:
             KeyConditionExpression=Key("station_pk").eq(f"STATION#{station_id}"),
         )
         # Il record originale decide conferma e associazione: il GSI può essere arretrato.
-        records = [
-            self.core.get_item(Key={"PK": k["PK"], "SK": k["SK"]}, ConsistentRead=True).get("Item")
-            for k in keys
-        ]
+        batch = self.batch_core([{"PK": k["PK"], "SK": k["SK"]} for k in keys])
+        records = [batch.get((key["PK"], key["SK"])) for key in keys]
         return [
             r for r in records if r and r.get("confirmed") and r.get("station_id") == station_id
         ]
+
+    def batch_core(self, keys):
+        unique = list({(key["PK"], key["SK"]): key for key in keys}.values())
+        items = {}
+        for offset in range(0, len(unique), 100):
+            request = {
+                self.core.name: {"Keys": unique[offset : offset + 100], "ConsistentRead": True}
+            }
+            for attempt in range(6):
+                response = self.resource.batch_get_item(RequestItems=request)
+                for item in response.get("Responses", {}).get(self.core.name, []):
+                    items[(item["PK"], item["SK"])] = item
+                request = response.get("UnprocessedKeys", {})
+                if not request:
+                    break
+                if attempt == 5:
+                    raise DomainError("Lettura del censimento incompleta: riprovare", 503)
+                time.sleep(0.05 * 2**attempt)
+        return items
+
+    def get_states(self, device_ids):
+        items = self.batch_core(
+            [{"PK": escalator(identifier), "SK": "STATE"} for identifier in device_ids]
+        )
+        return {
+            identifier: items.get(
+                (escalator(identifier), "STATE"), {"version": 0, "community": None}
+            )
+            for identifier in device_ids
+        }
 
     def get_escalator(self, escalator_id):
         return self.core.get_item(

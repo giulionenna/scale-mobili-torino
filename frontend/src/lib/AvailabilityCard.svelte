@@ -50,10 +50,17 @@
       <span class="metric-kicker"
         ><Icon name="check" size={21} /> OSSERVATI FUNZIONANTI</span
       >
-      <strong class="availability-value">{percentage(stats.working)}</strong>
+      <strong class="availability-value"
+        >{data?.availability?.observed_devices === 0
+          ? "—"
+          : percentage(stats.working)}</strong
+      >
       <span class="availability-caption"
-        >{#if data}<b>{stats.working} su {stats.total}</b> impianti censiti{:else}Caricamento
-          del censimento…{/if}</span
+        >{#if data?.availability?.observed_devices === 0}<b
+            >{stats.total} impianti censiti</b
+          > · nessuna osservazione{:else if data}<b
+            >{stats.working} su {stats.total}</b
+          > impianti censiti{:else}Caricamento del censimento…{/if}</span
       >
     </span>
     <span class="availability-side">

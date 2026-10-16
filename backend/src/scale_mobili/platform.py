@@ -5,7 +5,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from scale_mobili.catalog import CatalogMixin
 from scale_mobili.domain import DomainError, percentage, public_event, timestamp
-from scale_mobili.keys import favorite_stations_key, idempotency_key
+from scale_mobili.keys import ACTIVE_CATALOG, favorite_stations_key, idempotency_key
 from scale_mobili.photos import sanitize_photo
 from scale_mobili.repository import record
 from scale_mobili.service import Service
@@ -51,6 +51,22 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
         if not value:
             raise DomainError("Stazione non trovata", 404)
         return value
+
+    def stations(self):
+        active = self.store.get_core(ACTIVE_CATALOG) or {}
+        visible = [
+            station
+            for station in self.store.list_stations()
+            if not station.get("inventory_dataset")
+            or station["inventory_dataset"] == active.get("dataset_id")
+        ]
+        real = [s for s in visible if not s.get("synthetic")]
+        return [
+            {key: station.get(key) for key in ("station_id", "name", "synthetic", "line_order")}
+            for station in sorted(
+                real or visible, key=lambda s: (s.get("line_order", 999), s["name"])
+            )
+        ]
 
     def _write(self, actor, request_key, operation, body, factory, *, invalidate=True):
         self.require_scope(actor)
@@ -172,6 +188,7 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
                     "official_id",
                     "operator",
                     "version",
+                    "inventory_evidence",
                 )
             }
             for e in self.store.list_escalators(station_id)
@@ -545,12 +562,16 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
         return self.blobs.get(self.photos_bucket, photo["sanitized_key"], 1024 * 1024)[0]
 
     def feed(self, cursor=None, limit=20):
+        synthetic = all(s["synthetic"] for s in self.stations())
+
         def load(after):
             rows, last = self.store.page_core(
                 "FEED#REPORTS", limit=limit, after=after, descending=True
             )
             items = []
             for row in rows:
+                if bool(row.get("synthetic")) != synthetic:
+                    continue
                 item = public_event(row)
                 if row.get("photo_id"):
                     photo = self.store.get_core(entity("PHOTO", row["photo_id"]))
@@ -563,7 +584,7 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
 
     def catalog(self):
         result = []
-        for station in self.store.list_stations():
+        for station in self.stations():
             result.extend(self.store.list_escalators(station["station_id"]))
             if len(result) > self.settings.max_catalog_devices:
                 raise DomainError("Censimento oltre il limite del prototipo", 503)
@@ -571,18 +592,35 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
 
     def availability(self):
         devices = self.catalog()
-        states = [self.store.get_state(d["escalator_id"]).get("community") for d in devices]
+        current = self.store.get_states([d["escalator_id"] for d in devices])
+        states = [current[d["escalator_id"]].get("community") for d in devices]
         return self._availability(devices, states)
 
     def public_overview(self):
-        devices = [
-            device for station in self.stations() for device in self.devices(station["station_id"])
-        ]
+        stations = self.stations()
+        devices = [device for station in stations for device in self.devices(station["station_id"])]
         if len(devices) > self.settings.max_catalog_devices:
             raise DomainError("Censimento oltre il limite del prototipo", 503)
-        states = {device["device_id"]: self.status(device["device_id"]) for device in devices}
+        current = self.store.get_states([d["device_id"] for d in devices])
+        when = timestamp()
+        states = {
+            device["device_id"]: {
+                "device_id": device["device_id"],
+                "escalator_id": device["device_id"],
+                "synthetic": device["synthetic"],
+                "community": current[device["device_id"]].get("community"),
+                "official": current[device["device_id"]].get("official"),
+                "estimate": None,
+                "missing_reason": "Nessuna informazione disponibile"
+                if not any(current[device["device_id"]].get(k) for k in ("community", "official"))
+                else None,
+                "generated_at": when,
+                "url": f"/impianto?id={device['device_id']}",
+            }
+            for device in devices
+        }
         return {
-            "stations": self.stations(),
+            "stations": stations,
             "devices": devices,
             "states": states,
             "availability": self._availability(

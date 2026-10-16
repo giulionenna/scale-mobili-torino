@@ -1,6 +1,6 @@
 # Scale Mobili Torino
 
-Piattaforma civica indipendente per scale mobili e ascensori della metropolitana di Torino. Raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. Il prototipo è distribuito su AWS Milano e collegato al sito privato; **censimento, osservazioni e fotografie di collaudo restano sintetici**.
+Piattaforma civica indipendente per scale mobili e ascensori della metropolitana di Torino. Raccoglie osservazioni della community e le confronta con comunicazioni ufficiali verificabili. Il prototipo è distribuito su AWS Milano e collegato al sito privato. Il [censimento documentale GTT](docs/censimento-m1.md) comprende **23 stazioni e 215 impianti**, senza attribuire stati di funzionamento. I dati sintetici del collaudo restano separati.
 
 [Apri l'anteprima privata interattiva](https://scale-mobili-torino-prototipo.tender-tapir-0169.chatgpt.site). Pubblicata con Sites: usa API AWS, login Cognito e persistenza DynamoDB/S3. Segnalazioni, proposte e foto passano dai controlli del backend. [Esiti del collaudo reale](docs/collaudo-aws.md).
 
@@ -17,6 +17,7 @@ Piattaforma civica indipendente per scale mobili e ascensori della metropolitana
 9. [Frontend collegato alle API: modalità e collaudo](docs/frontend-collegato.md)
 10. [Primo deploy AWS e controllo dei costi](docs/primo-deploy-e-costi.md)
 11. [Deploy e collaudo AWS reale](docs/collaudo-aws.md)
+12. [Censimento M1: 23 stazioni, fonti, dati esportabili e limiti](docs/censimento-m1.md)
 
 Database confermato: **DynamoDB**. Frontend SvelteKit statico, backend Python/Lambda, Cognito, S3, API/MCP e deploy Terraform/GitHub Actions OIDC sono distribuiti e collaudati nel prototipo. Regione: Milano, `eu-south-1`.
 
