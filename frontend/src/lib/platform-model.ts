@@ -153,9 +153,55 @@ export function latest(data: Data, id: string): Report | undefined {
     )[0];
 }
 export function deviceName(data: Data, id: string) {
-  return (
-    data.devices.find((d) => d.id === id)?.name || "Impianto non disponibile"
+  const device = data.devices.find((d) => d.id === id);
+  return device ? deviceTitle(device) : "Impianto non disponibile";
+}
+
+// Solo traduzione delle posizioni già documentate: nessuna attribuzione
+// di uscite, tornelli o banchine verso i capolinea non verificata sul posto.
+export function deviceTitle(device: Device): string {
+  const kind = kindLabels[device.kind];
+  if (
+    device.synthetic ||
+    !device.inventory_evidence ||
+    !device.official_id ||
+    device.name !== `${kind} · ${device.official_id}`
+  )
+    return device.name;
+  const routes: Record<string, [string, string]> = {
+    "Banchina ↔ atrio": ["dalla banchina", "all’atrio"],
+    "Banchina ↔ mezzanino": ["dalla banchina", "al mezzanino"],
+    "Mezzanino ↔ atrio": ["dal mezzanino", "all’atrio"],
+    "Atrio ↔ esterno": ["dall’atrio", "all’esterno"],
+  };
+  const [route, direction] = device.location.split(" · ");
+  const endpoints = routes[route];
+  if (!endpoints) return device.name;
+  if (device.kind === "ascensore") return `${kind} · ${route.toLowerCase()}`;
+  if (direction === "salita prevista")
+    return `${kind} · salita ${endpoints[0]} ${endpoints[1]}`;
+  const descents: Record<string, string> = {
+    "Banchina ↔ atrio": "dall’atrio alla banchina",
+    "Banchina ↔ mezzanino": "dal mezzanino alla banchina",
+    "Mezzanino ↔ atrio": "dall’atrio al mezzanino",
+    "Atrio ↔ esterno": "dall’esterno all’atrio",
+  };
+  if (direction === "discesa prevista")
+    return `${kind} · discesa ${descents[route]}`;
+  return device.name;
+}
+
+export function deviceReference(device: Device, devices: Device[]): string {
+  if (deviceTitle(device) === device.name || !device.official_id) return "";
+  const sameRoute = devices.some(
+    (other) =>
+      other.id !== device.id &&
+      other.station_id === device.station_id &&
+      deviceTitle(other) === deviceTitle(device),
   );
+  return sameRoute
+    ? `Matricola ${device.official_id} · percorso da distinguere sul posto`
+    : "";
 }
 export function date(value: string) {
   return new Intl.DateTimeFormat("it-IT", {

@@ -4068,3 +4068,22 @@ html {
 .favorite-photo-preview button {
   justify-self: start;
 }
+
+/* Percorsi leggibili anche sulle schede strette e sui telefoni. */
+.device-row > span:nth-child(2) {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.device-row > svg,
+.device-row .status {
+  flex-shrink: 0;
+}
+.device-reference {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: #6e819d;
+  margin-top: 3px;
+}

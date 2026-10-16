@@ -27,6 +27,8 @@
   import {
     latest,
     deviceName,
+    deviceTitle,
+    deviceReference,
     labels,
     kindLabels,
     age,
@@ -881,7 +883,7 @@
                   />
                   <span class="incident-device"
                     ><strong>{stationName(incident.device.station_id)}</strong
-                    ><span>{incident.device.name}</span></span
+                    ><span>{deviceTitle(incident.device)}</span></span
                   >
                   <span class="incident-evidence"
                     ><b
@@ -940,7 +942,9 @@
                 href="https://gtt-to.acquistitelematici.it/tender/5133"
                 target="_blank"
                 rel="noreferrer">Ascensori · GTT 2025</a
-              >. Lo stato di funzionamento richiede osservazioni separate.
+              >. Salita e discesa indicano la direzione prevista nel documento.
+              Banchine e uscite precise restano da verificare sul posto. Lo
+              stato di funzionamento richiede osservazioni separate.
               <a href="/censimento-m1.csv" download>Scarica il censimento CSV</a
               >.
             </p>
@@ -984,7 +988,14 @@
                       ><Icon
                         name={device.kind === "ascensore" ? "lift" : "stairs"}
                         size={17}
-                      /><span>{device.name}</span><span
+                      /><span
+                        >{deviceTitle(
+                          device,
+                        )}{#if deviceReference(device, data.devices)}<small
+                            class="device-reference"
+                            >{deviceReference(device, data.devices)}</small
+                          >{/if}</span
+                      ><span
                         class:unknown={!report ||
                           report.status === "non_verificabile"}
                         class:broken={report?.status === "guasta"}
@@ -1055,7 +1066,9 @@
                 <article>
                   <h3>
                     {stationName(device.station_id)}<small
-                      >{device.name}{browserDemo ? " · esempio" : ""}</small
+                      >{deviceTitle(device)}{browserDemo
+                        ? " · esempio"
+                        : ""}</small
                     >
                   </h3>
                   <div class="comparison-source">
@@ -1260,7 +1273,9 @@
               disabled={busy || !selectedStation}
               ><option value="" disabled>Scegli l’impianto</option
               >{#each formDevices as d}<option value={d.id}
-                  >{kindLabels[d.kind]} · {d.name} — {d.location}</option
+                  >{deviceTitle(d)}{deviceReference(d, data.devices)
+                    ? ` — ${deviceReference(d, data.devices)}`
+                    : ""}</option
                 >{/each}</select
             >
             <div class="missing-device">
@@ -1710,8 +1725,11 @@
           ? " · IMPIANTO DEMO"
           : ""}
       </p>
-      <h2 id="detail-title">{detail.name}</h2>
+      <h2 id="detail-title">{deviceTitle(detail)}</h2>
       <p>{detail.location}</p>
+      {#if detail.official_id}<p class="muted">
+          Matricola GTT: {detail.official_id}
+        </p>{/if}
       {#if detail.inventory_evidence}
         <div class="detail-evidence muted">
           <strong>Identificazione da fonte GTT</strong>
