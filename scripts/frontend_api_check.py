@@ -438,11 +438,110 @@ def main():
                     )
                 ).to_be_visible()
                 assert favorites_page.locator(".favorite-device").count() >= 2
-                check = favorites_page.locator(".favorite-device").first
-                check.locator("select").select_option("non_verificabile")
-                check.get_by_role("button", name="Invia osservazione").click()
+                checks = favorites_page.locator(".favorite-device")
+                check = checks.first
+                expect(check.locator("select, input, textarea")).to_have_count(0)
+                favorites_page.screenshot(
+                    path="/tmp/torino-favorites-quick.png", full_page=True
+                )
+                before = httpx.get(base + "/api/feed?limit=100").json()["items"]
+                # One click, then simulate a response lost after commit. A retry must keep time and key.
+                quick_payloads = []
+
+                def lose_quick_response(route):
+                    quick_payloads.append(
+                        (
+                            route.request.post_data_json,
+                            route.request.headers["idempotency-key"],
+                        )
+                    )
+                    response = route.fetch()
+                    assert response.status == 201
+                    route.abort()
+                    favorites_page.unroute(
+                        "**/api/devices/*/reports", lose_quick_response
+                    )
+
+                favorites_page.route("**/api/devices/*/reports", lose_quick_response)
+                check.get_by_role("button", name="Funziona", exact=True).click()
+                expect(
+                    favorites_page.locator('.favorites-dialog [role="alert"]')
+                ).to_be_visible()
+                with favorites_page.expect_request("**/api/devices/*/reports") as retry:
+                    check.get_by_role("button", name="Funziona", exact=True).click()
+                assert retry.value.post_data_json == quick_payloads[0][0]
+                assert retry.value.headers["idempotency-key"] == quick_payloads[0][1]
+                assert quick_payloads[0][0]["status"] == "funzionante"
+                assert quick_payloads[0][0]["observed_at"]
                 expect(check.get_by_role("status")).to_contain_text(
                     "Segnalazione salvata"
+                )
+                second = checks.nth(1)
+                with favorites_page.expect_request(
+                    "**/api/devices/*/reports"
+                ) as broken:
+                    second.get_by_role(
+                        "button", name="Non funziona", exact=True
+                    ).click()
+                expect(second.get_by_role("status")).to_contain_text(
+                    "Segnalazione salvata"
+                )
+                assert broken.value.post_data_json["status"] == "guasta"
+                # Reopen a fresh prompt to inspect and submit the optional complete form.
+                favorites_page.get_by_role("button", name="Fatto, continua").click()
+                favorites_page.get_by_role(
+                    "button", name="Verifica i preferiti"
+                ).click()
+                check = favorites_page.locator(".favorite-device").first
+                before_details = httpx.get(base + "/api/feed?limit=100").json()["items"]
+                check.get_by_role("button", name="Altro", exact=True).click()
+                assert (
+                    httpx.get(base + "/api/feed?limit=100").json()["items"]
+                    == before_details
+                )
+                expect(check.get_by_label("Quando l’hai osservato?")).to_be_visible()
+                expect(check.get_by_label("Fotografia (facoltativa)")).to_be_visible()
+                check.locator("select").select_option("manutenzione")
+                check.get_by_label("Descrizione (facoltativa)").fill(
+                    "Manutenzione sintetica: dettagli facoltativi"
+                )
+                check.get_by_label("Fotografia (facoltativa)").set_input_files(
+                    {
+                        "name": "favorite-qa.png",
+                        "mimeType": "image/png",
+                        "buffer": image.getvalue(),
+                    }
+                )
+                expect(
+                    check.get_by_alt_text("Anteprima della foto da allegare")
+                ).to_be_visible()
+                favorites_page.screenshot(
+                    path="/tmp/torino-favorites-details.png", full_page=True
+                )
+                with favorites_page.expect_request(
+                    "**/api/devices/*/reports"
+                ) as detailed:
+                    check.get_by_role("button", name="Invia osservazione").click()
+                expect(check.get_by_role("status")).to_contain_text(
+                    "Segnalazione salvata"
+                )
+                assert detailed.value.post_data_json["status"] == "manutenzione"
+                assert detailed.value.post_data_json["photo_id"]
+                assert (
+                    httpx.get(
+                        base
+                        + "/api/photos/"
+                        + detailed.value.post_data_json["photo_id"]
+                        + "/image"
+                    ).status_code
+                    == 404
+                )
+                assert detailed.value.post_data_json["description"].startswith(
+                    "Manutenzione sintetica"
+                )
+                assert (
+                    len(httpx.get(base + "/api/feed?limit=100").json()["items"])
+                    == len(before) + 3
                 )
                 assert favorites_page.evaluate(
                     "document.documentElement.scrollWidth <= innerWidth"

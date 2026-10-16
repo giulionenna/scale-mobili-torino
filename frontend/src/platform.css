@@ -3988,7 +3988,8 @@ html {
   margin: 14px 0;
 }
 .favorite-device input,
-.favorite-device select {
+.favorite-device select,
+.favorite-device textarea {
   width: 100%;
   min-width: 0;
   padding: 10px;
@@ -4004,4 +4005,60 @@ html {
 }
 .favorites-footer small {
   color: var(--muted);
+}
+
+.favorite-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+.favorite-quick-actions .button {
+  padding: 12px 10px;
+  min-height: 44px;
+  justify-content: center;
+  white-space: normal;
+}
+.button.quick-working {
+  background: #e9f3ed;
+  border: 1px solid #b4d4c0;
+  color: #24573d;
+}
+.button.quick-working:hover:not(:disabled) {
+  background: #d8ebdf;
+}
+.button.quick-broken {
+  background: #fbefee;
+  border: 1px solid #e8c3be;
+  color: #8e382e;
+}
+.button.quick-broken:hover:not(:disabled) {
+  background: #f6dfdc;
+}
+.favorite-quick-actions .favorite-more {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 36px;
+}
+.favorite-details {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+.favorite-device textarea {
+  resize: vertical;
+}
+.favorite-photo-preview {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+.favorite-photo-preview img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.favorite-photo-preview button {
+  justify-self: start;
 }
