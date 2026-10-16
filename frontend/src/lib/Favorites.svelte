@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { Data, Member, DeviceStatus, Photo } from "./platform-model";
-  import { labels } from "./platform-model";
+  import { labels, deviceTitle, deviceReference } from "./platform-model";
   import {
     getFavorites,
     saveFavorites,
@@ -324,8 +324,15 @@
               <p class="eyebrow">
                 {stations.find((s) => s.id === device.station_id)?.name}
               </p>
-              <h3>{device.name}</h3>
-              <p>{device.location}</p>
+              <h3>{deviceTitle(device)}</h3>
+              <p>
+                {deviceTitle(device) === device.name
+                  ? device.location
+                  : "Percorso da fonte GTT · direzione prevista"}
+              </p>
+              {#if deviceReference(device, data.devices)}<p class="muted">
+                  {deviceReference(device, data.devices)}
+                </p>{/if}
               {#if sent.includes(device.id)}<p role="status">
                   ✓ Segnalazione salvata
                 </p>
@@ -362,7 +369,7 @@
                   >
                     <label
                       >Stato osservato<select
-                        aria-label={`Stato di ${device.name}`}
+                        aria-label={`Stato di ${deviceTitle(device)}`}
                         bind:value={answers[device.id]}
                         disabled={busy}
                       >

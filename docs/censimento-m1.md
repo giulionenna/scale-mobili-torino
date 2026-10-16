@@ -66,3 +66,7 @@ L’import verifica collisioni, duplicati e provenienza prima delle scritture. L
 Con il censimento reale attivo, home, feed e statistiche usano i dati reali. I vecchi ID demo e il loro storico restano consultabili esplicitamente; i preferiti non vengono riscritti automaticamente. Se rimandano soltanto a stazioni demo, l’interfaccia propone di scegliere le nuove stazioni reali.
 
 Per 215 impianti la panoramica legge i metadata originali e gli stati con BatchGet coerenti in gruppi fino a 100, senza centinaia di richieste individuali e senza Scan. Gli elementi non elaborati vengono ritentati con attesa limitata; un fallimento non si trasforma in dati assenti.
+
+## Nomi mostrati sul sito
+
+L’interfaccia traduce i percorsi documentati in descrizioni come «Scala mobile · salita dalla banchina all’atrio» o «Ascensore · atrio ↔ esterno». Salita/discesa indicano la direzione prevista dal capitolato, non lo stato osservato. La matricola rimane nella scheda tecnica e, quando più impianti condividono lo stesso percorso, come riferimento secondario per distinguerli. Non vengono inventati numeri locali, uscite, capolinea o corrispondenze tra atrio e tornelli: per quelle servono foto e verifica sul posto. I nomi personalizzati e i dati sintetici mantengono la loro descrizione. ID, dataset originale, API e storico non vengono modificati.
