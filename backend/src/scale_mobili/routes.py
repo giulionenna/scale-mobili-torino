@@ -36,7 +36,12 @@ def register_routes(app, service, settings):
 
     @app.get("/api/me")
     def me(actor=actor_dependency):
-        return {"id": actor.id, "moderator": actor.moderator, "scopes": sorted(actor.scopes)}
+        return {
+            "id": actor.id,
+            "moderator": actor.moderator,
+            "administrator": actor.administrator,
+            "scopes": sorted(actor.scopes),
+        }
 
     @app.get("/api/me/favorite-stations")
     def favorite_stations(actor=actor_dependency):

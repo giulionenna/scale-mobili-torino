@@ -147,3 +147,30 @@ Verifiche: isolamento tra account, persistenza tra istanze del servizio,
 concorrenza e retry in memoria/DynamoDB emulato; Chromium con API ed emulatori
 prova scelta, verifica all’accesso, salto senza scritture, invio esplicito,
 ricaricamento, mobile e colore della scheda disponibilità al passaggio del mouse.
+
+## Registrazione e amministrazione
+
+Il login del sito privato Sites e l’account applicativo sono distinti. Nel dialogo
+«Accedi» sono disponibili «Accedi al tuo account» e «Crea un account». La creazione
+apre il modulo Cognito con lo stesso flusso PKCE e callback; richiede la conferma
+dell’email tramite codice. Il recupero password è nella pagina di accesso Cognito.
+Le modifiche all’indirizzo email richiedono una nuova verifica.
+
+Gli utenti registrati sono cittadini. Il gruppo Cognito `administrators`, assegnato
+solo tramite accesso operativo AWS, abilita l’area «Amministrazione» e le revisioni
+già disponibili ai moderatori: censimento, foto e fonti tramite API. I gruppi sono
+letti dal token firmato; email, parametri URL o dati nel browser non assegnano ruoli.
+L’interfaccia attuale gestisce proposte e fotografie; non comprende una console
+per modificare gli account degli altri utenti.
+
+Per assegnare l’accesso iniziale, dopo registrazione e verifica dell’email:
+
+```bash
+uv run --project backend python scripts/grant_admin.py --user-pool-id <pool-del-prototipo>
+```
+
+L’indirizzo viene richiesto con input nascosto, senza password o inviti automatici.
+Lo script richiede un account attivo, confermato, con email verificata e corrispondente;
+usa l’identità immutabile restituita da Cognito per l’assegnazione. `--check-only`
+verifica la preparazione senza assegnare il ruolo. Non inserire email reali in Git.
+Dopo l’assegnazione uscire e accedere di nuovo per ottenere il token aggiornato.

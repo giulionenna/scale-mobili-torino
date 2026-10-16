@@ -85,6 +85,23 @@ def check_oauth(browser, web, base):
 
     page.route("**/api/**", api_route)
     page.route("https://identity.example.invalid/**", identity_route)
+    # Registration starts its own PKCE flow and preserves resource/scopes/callback.
+    page.goto(web + "/home/", wait_until="networkidle")
+    page.get_by_role("button", name="Accedi", exact=True).click()
+
+    def signup_route(route):
+        params = parse_qs(urlparse(route.request.url).query)
+        assert params["redirect_uri"] == [web + "/auth/cognito"]
+        assert params["resource"] == [base + "/mcp"]
+        assert params["code_challenge_method"] == ["S256"]
+        assert params["state"][0]
+        route.fulfill(body="Registrazione con verifica email", content_type="text/html")
+
+    page.route("https://identity.example.invalid/signup?*", signup_route)
+    page.get_by_role("button", name="Crea un account", exact=True).click()
+    page.wait_for_url("https://identity.example.invalid/signup?*")
+    assert "code_challenge=" in page.url
+
     page.goto(web + "/segnala/", wait_until="networkidle")
     expect(page.get_by_role("dialog")).to_be_visible()
     expect(

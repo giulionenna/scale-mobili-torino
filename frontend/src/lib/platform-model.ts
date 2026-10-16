@@ -15,6 +15,7 @@ export type Member = {
   id: string;
   name: string;
   role: "citizen" | "moderator";
+  administrator?: boolean;
 };
 export type Photo = {
   data: string;

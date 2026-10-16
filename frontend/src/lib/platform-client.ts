@@ -59,13 +59,20 @@ export async function member(): Promise<Member | null> {
   if (browserDemo) return (await import("./platform-demo")).member();
   if (!(await token())) return (activeMember = null);
   try {
-    const result = await authorized<{ id: string; moderator: boolean }>(
-      "/api/me",
-    );
+    const result = await authorized<{
+      id: string;
+      moderator: boolean;
+      administrator: boolean;
+    }>("/api/me");
     return (activeMember = {
       id: result.id,
-      name: result.moderator ? "Moderatore" : "Cittadino",
+      name: result.administrator
+        ? "Amministratore"
+        : result.moderator
+          ? "Moderatore"
+          : "Cittadino",
       role: result.moderator ? "moderator" : "citizen",
+      administrator: result.administrator,
     });
   } catch (error) {
     if (error instanceof ApiError && error.status === 401)
@@ -76,6 +83,7 @@ export async function member(): Promise<Member | null> {
 export async function signIn(
   role: "citizen" | "moderator",
   destination: string,
+  createAccount = false,
 ): Promise<Member | null> {
   if (browserDemo) {
     sessionStorage.removeItem("smt.favorites-checked");
@@ -83,7 +91,7 @@ export async function signIn(
   }
   await initialize();
   if (!developmentLogin()) {
-    await login(destination);
+    await login(destination, createAccount);
     return null;
   }
   sessionStorage.removeItem("smt.favorites-checked");

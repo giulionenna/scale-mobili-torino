@@ -195,7 +195,7 @@ un piano successivo. `budget_reviewed=false` blocca il piano.
    sullo stesso commit e con quel run ID. Il workflow verifica entrambi gli hash e
    applica soltanto il piano scaricato. Non esiste deploy da push o pull request.
 5. Creare gli utenti di prova e il gruppo moderatore con accesso amministrativo
-   dedicato; il prototipo Cognito non consente autoregistrazione. Verificare login,
+   dedicato, senza inviti email. La registrazione dal sito richiede conferma email; il ruolo amministratore si assegna separatamente con `scripts/grant_admin.py`. Verificare login,
    PKCE, rinnovo, API, SDK MCP e il client ChatGPT separatamente. Per MCP il token
    deve contenere l'audience della risorsa; per REST un token Cognito standard senza
    `aud` è ammesso solo con issuer, firma, access token e client ID validi.

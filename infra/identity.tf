@@ -12,7 +12,10 @@ resource "aws_cognito_user_pool" "users" {
     require_symbols                  = true
     temporary_password_validity_days = 3
   }
-  admin_create_user_config { allow_admin_create_user_only = true }
+  admin_create_user_config { allow_admin_create_user_only = false }
+  user_attribute_update_settings {
+    attributes_require_verification_before_update = ["email"]
+  }
   account_recovery_setting {
     recovery_mechanism {
       name     = "verified_email"
@@ -70,6 +73,12 @@ resource "aws_cognito_user_group" "moderators" {
   name         = "moderators"
   user_pool_id = aws_cognito_user_pool.users.id
   description  = "Revisione server di impianti, foto e interpretazioni delle fonti"
+}
+
+resource "aws_cognito_user_group" "administrators" {
+  name         = "administrators"
+  user_pool_id = aws_cognito_user_pool.users.id
+  description  = "Amministratori della piattaforma: revisione di impianti, foto e fonti"
 }
 
 # Il binding OAuth resource -> aud richiesto da MCP usa managed login.
