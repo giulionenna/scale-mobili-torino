@@ -182,3 +182,29 @@ controllo delle stazioni esistenti, ricevuta di idempotenza e limite antiabuso.
 Due sessioni concorrenti ricevono un conflitto, evitando sovrascritture silenziose.
 Le preferenze non producono osservazioni, feed, audit pubblico o invalidazioni
 statistiche. Il record privato va incluso nell’eventuale cancellazione dei dati dell’account.
+
+## Censimento documentale M1 (16 ottobre 2026)
+
+Accessi: importazione additiva amministrativa, verifica delle matricole prima
+dell'import, attivazione della directory completa, panoramica dei 215 impianti.
+I metadata usano le stesse chiavi stazione/ESC esistenti, con ID UUID immutabili,
+`inventory_dataset`, digest e provenienza documentale (URL, PDF, pagina, hash,
+pubblicazione/acquisizione/registrazione distinti). Nessun record STATE viene
+creato dal censimento. Gli originali rimangono privati.
+
+| Documento | PK / SK | Accesso |
+| --- | --- | --- |
+| Riserva di una matricola da documento GTT | `INVENTORY_ID#sha256` / `CLAIM` | GetItem e Put condizionata insieme al metadata; hash su perimetro GTT M1, tipo e matricola normalizzata |
+| Manifest di importazione | `CATALOG#IMPORTS` / `DATASET#id` | GetItem, digest del dataset, conteggi, data; nessuna sovrascrittura di una revisione già registrata |
+| Puntatore di attivazione | `CATALOG#ACTIVE` / `CURRENT` | GetItem; attivazione transazionale col manifest dopo riscontro dell'indice delle stazioni |
+
+La directory pubblica esclude dataset non ancora attivati. Se esistono stazioni
+reali attive, seleziona queste per home, feed e aggregazioni; i record demo e gli
+eventi preesistenti non vengono cancellati. I preferiti conservano gli ID salvati;
+il frontend propone nuove scelte quando questi non sono nella directory corrente.
+
+BatchGet coerenti con gruppi fino a 100 sostituiscono le letture individuali dei
+metadata elencati dal GSI e degli stati della panoramica. Ogni metadata corrente
+deve ancora essere confermato e appartenere alla stazione richiesta. Retry limitati
+sulle sole chiavi non elaborate; fallimento esplicito invece di trattare una
+lettura incompleta come assenza di evidenza. Nessuna Scan, tabella o GSI aggiuntivo.

@@ -926,6 +926,25 @@
             </div>
             <span class="line-chip">M1 · Torino</span>
           </div>
+          {#if data.devices.some((device) => device.inventory_evidence)}
+            <p class="inventory-source-note">
+              Censimento documentale: 142 scale mobili e 73 ascensori, da Fermi
+              a Bengasi.
+              <a
+                href="https://gtt-to.acquistitelematici.it/tender/7773"
+                target="_blank"
+                rel="noreferrer">Scale mobili · GTT 2026</a
+              >
+              ·
+              <a
+                href="https://gtt-to.acquistitelematici.it/tender/5133"
+                target="_blank"
+                rel="noreferrer">Ascensori · GTT 2025</a
+              >. Lo stato di funzionamento richiede osservazioni separate.
+              <a href="/censimento-m1.csv" download>Scarica il censimento CSV</a
+              >.
+            </p>
+          {/if}
           <div class="station-tools">
             <label class="search-box"
               ><Icon name="search" size={18} /><input
@@ -1693,6 +1712,22 @@
       </p>
       <h2 id="detail-title">{detail.name}</h2>
       <p>{detail.location}</p>
+      {#if detail.inventory_evidence}
+        <div class="detail-evidence muted">
+          <strong>Identificazione da fonte GTT</strong>
+          <a
+            href={detail.inventory_evidence.url}
+            target="_blank"
+            rel="noreferrer"
+            >{detail.inventory_evidence.title} · pagina {detail
+              .inventory_evidence.page}</a
+          >
+          <small
+            >{detail.inventory_evidence.identification_note} La matricola è quella
+            riportata nel documento; sopralluogo ancora da eseguire.</small
+          >
+        </div>
+      {/if}
       <div class="detail-evidence">
         <strong>Community</strong><span
           >{observation

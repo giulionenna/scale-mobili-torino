@@ -254,7 +254,7 @@ def main():
                     ),
                 )
                 page.goto(web, wait_until="networkidle")
-                expect(page.locator(".availability-value")).to_have_text("0%")
+                expect(page.locator(".availability-value")).to_have_text("—")
                 assert not private_calls
                 page.get_by_role("button", name="Esplora la panoramica").click()
                 page.locator(".availability-toggle").hover()
@@ -551,6 +551,59 @@ def main():
                 expect(favorites_page.get_by_role("dialog")).to_have_count(0)
                 favorites_context.close()
                 check_oauth(browser, web, base)
+                # Il censimento reale viene importato soltanto negli emulatori.
+                # Nessuna osservazione sintetica viene inviata a un impianto reale.
+                subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        "from scale_mobili.cli import main; main()",
+                        "import-inventory",
+                        "data/torino-m1-2026-10-16.json",
+                        "--apply",
+                        "--write-delay",
+                        "0",
+                    ],
+                    cwd=root,
+                    env=env,
+                    check=True,
+                )
+                census_context = browser.new_context(
+                    viewport={"width": 390, "height": 844}, locale="it-IT"
+                )
+                census_page = census_context.new_page()
+                census_page.goto(web + "/home/", wait_until="networkidle")
+                expect(census_page.locator(".station-card")).to_have_count(23)
+                expect(census_page.locator(".device-row")).to_have_count(215)
+                expect(census_page.locator(".availability-caption")).to_contain_text(
+                    "215"
+                )
+                expect(census_page.locator(".availability-value")).to_have_text("—")
+                expect(census_page.locator(".inventory-source-note")).to_contain_text(
+                    "142"
+                )
+                assert all(
+                    not s["synthetic"]
+                    for s in httpx.get(base + "/api/overview").json()["devices"]
+                )
+                assert httpx.get(base + "/api/feed").json()["items"] == []
+                census_page.get_by_label("Cerca una stazione").fill("Bengasi")
+                expect(census_page.locator(".station-card")).to_have_count(1)
+                expect(census_page.locator(".device-row")).to_have_count(9)
+                census_page.locator(".device-row").first.click()
+                expect(census_page.get_by_role("dialog")).to_contain_text(
+                    "Identificazione da fonte GTT"
+                )
+                expect(census_page.get_by_role("dialog")).to_contain_text(
+                    "Nessuna informazione disponibile"
+                )
+                census_page.screenshot(
+                    path="/tmp/torino-census-mobile.png", full_page=True
+                )
+                assert census_page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth"
+                )
+                census_context.close()
                 browser.close()
             print(
                 "Browser + API: letture pubbliche, login, retry senza duplicati, foto private/pubbliche, proposte, moderazione, persistenza tra riavvii e sessioni, OAuth/PKCE/rinnovo simulati, viewport mobile: OK."

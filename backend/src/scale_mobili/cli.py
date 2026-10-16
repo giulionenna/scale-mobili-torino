@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
@@ -7,6 +8,7 @@ from botocore.exceptions import ClientError
 from scale_mobili.aggregates import rebuild_snapshot
 from scale_mobili.config import get_settings
 from scale_mobili.domain import Actor, DomainError, SourceInput
+from scale_mobili.inventory import import_inventory
 from scale_mobili.platform import PlatformService
 from scale_mobili.runtime import build_runtime
 from scale_mobili.seed import seed_synthetic
@@ -80,6 +82,10 @@ def main():
     seed = commands.add_parser("seed")
     seed.add_argument("--synthetic", action="store_true", required=True)
     commands.add_parser("rebuild")
+    inventory = commands.add_parser("import-inventory")
+    inventory.add_argument("file", type=Path)
+    inventory.add_argument("--apply", action="store_true")
+    inventory.add_argument("--write-delay", type=float, default=0.75)
     register = commands.add_parser("register-gtt")
     register.add_argument("--request-key", required=True)
     arguments = parser.parse_args()
@@ -96,6 +102,13 @@ def main():
         result = seed_synthetic(store)
     elif arguments.command == "rebuild":
         result = rebuild_snapshot(svc)
+    elif arguments.command == "import-inventory":
+        result = import_inventory(
+            store,
+            json.loads(arguments.file.read_text()),
+            apply=arguments.apply,
+            write_delay=max(0, arguments.write_delay),
+        )
     else:
         result = svc.register_source(
             SourceInput(

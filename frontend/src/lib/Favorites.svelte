@@ -81,8 +81,10 @@
     descriptions = {};
     photos = {};
     for (const id of Object.keys(attempts)) delete attempts[id];
-    selected = [...favorites.station_ids];
-    editing = edit || !favorites.station_ids.length;
+    selected = favorites.station_ids.filter((id) =>
+      stations.some((station) => station.id === id),
+    );
+    editing = edit || !selected.length;
     open = true;
   }
   onMount(() => {

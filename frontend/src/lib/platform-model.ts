@@ -10,6 +10,15 @@ export type Device = {
   name: string;
   location: string;
   synthetic: boolean;
+  official_id?: string | null;
+  inventory_evidence?: {
+    title: string;
+    url: string;
+    document: string;
+    page: number;
+    acquired_at: string;
+    identification_note: string;
+  } | null;
 };
 export type Member = {
   id: string;
