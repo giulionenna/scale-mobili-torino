@@ -77,12 +77,16 @@ export async function signIn(
   role: "citizen" | "moderator",
   destination: string,
 ): Promise<Member | null> {
-  if (browserDemo) return (await import("./platform-demo")).signIn(role);
+  if (browserDemo) {
+    sessionStorage.removeItem("smt.favorites-checked");
+    return (await import("./platform-demo")).signIn(role);
+  }
   await initialize();
   if (!developmentLogin()) {
     await login(destination);
     return null;
   }
+  sessionStorage.removeItem("smt.favorites-checked");
   sessionStorage.setItem(
     devTokenKey,
     role === "moderator" ? "demo-moderator" : "demo-user-1",
@@ -91,6 +95,7 @@ export async function signIn(
 }
 export function signOut() {
   activeMember = null;
+  sessionStorage.removeItem("smt.favorites-checked");
   sessionStorage.removeItem(devTokenKey);
   sessionStorage.removeItem("smt.platform-member.v2");
   logout();
@@ -364,8 +369,38 @@ export async function preparePhoto(file: File): Promise<Photo> {
   });
   return photo;
 }
+export type Favorites = { station_ids: string[]; version: number };
+export async function getFavorites(): Promise<Favorites> {
+  if (browserDemo)
+    return JSON.parse(
+      sessionStorage.getItem(`smt.favorites.${(await member())!.id}`) ||
+        '{"station_ids":[],"version":0}',
+    );
+  return authorized<Favorites>("/api/me/favorite-stations");
+}
+export async function saveFavorites(
+  station_ids: string[],
+  version: number,
+  key: string,
+): Promise<Favorites> {
+  if (browserDemo) {
+    const result = { station_ids, version: version + 1 };
+    sessionStorage.setItem(
+      `smt.favorites.${(await member())!.id}`,
+      JSON.stringify(result),
+    );
+    return result;
+  }
+  return authorized<Favorites>("/api/me/favorite-stations", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+    body: JSON.stringify({ station_ids, version }),
+  });
+}
 export async function submitReport(
-  input: Parameters<typeof import("./platform-demo").submitReport>[0],
+  input: Parameters<typeof import("./platform-demo").submitReport>[0] & {
+    observed_at?: string;
+  },
   key: string,
 ): Promise<void> {
   if (browserDemo) {
@@ -385,6 +420,7 @@ export async function submitReport(
       station_id: input.station_id,
       status: input.status,
       description: input.description.trim(),
+      observed_at: input.observed_at,
       photo_id,
     },
     key,

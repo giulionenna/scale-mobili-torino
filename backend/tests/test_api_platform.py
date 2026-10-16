@@ -209,3 +209,24 @@ def test_percentages_match_frontend_rounding():
     assert percentage(3, 8) == 38
     assert percentage(6, 9) == 67
     assert percentage(0, 0) is None
+
+
+def test_favorite_station_routes_auth_validation_and_actor_isolation(settings):
+    with TestClient(create_app(settings)) as client:
+        path = "/api/me/favorite-stations"
+        assert client.get(path).status_code == 401
+        body = {"station_ids": ["demo-station"], "version": 0}
+        assert client.put(path, json=body).status_code == 401
+        assert client.put(path, json=body, headers=headers()).json() == {
+            "station_ids": ["demo-station"],
+            "version": 1,
+        }
+        assert client.get(path, headers=headers(moderator=True)).json()["station_ids"] == []
+        assert client.get(path, headers=headers()).json()["station_ids"] == ["demo-station"]
+        for invalid in [
+            dict(body, actor_id="someone"),
+            dict(body, station_ids=["x"] * 51),
+            dict(body, version=-1),
+            dict(body, version=True),
+        ]:
+            assert client.put(path, json=invalid, headers=headers()).status_code == 422
