@@ -408,6 +408,14 @@
                           }}>Rimuovi foto</button
                         >
                       </div>{/if}
+                    <p class="privacy-form-note">
+                      Descrizione e foto approvata saranno pubbliche. Evita dati
+                      personali e persone riconoscibili. <a
+                        href="/privacy/"
+                        target="_blank"
+                        rel="noreferrer">Privacy</a
+                      >.
+                    </p>
                     <button
                       class="button navy"
                       disabled={busy ||
@@ -439,8 +447,8 @@
         <button class="button outline" disabled={busy} onclick={dismiss}
           >{sent.length ? "Fatto, continua" : "Salta e continua"}</button
         ><small
-          >Funziona e Non funziona inviano subito la risposta. I preferiti
-          restano salvati.</small
+          >Funziona e Non funziona inviano subito una segnalazione pubblica. I
+          preferiti restano salvati.</small
         >
       </div>
     </div>
