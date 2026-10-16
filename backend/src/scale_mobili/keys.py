@@ -1,6 +1,10 @@
 from hashlib import sha256
 
 
+def favorite_stations_key(actor_id: str) -> dict:
+    return {"PK": f"USER#{actor_id}", "SK": "FAVORITE_STATIONS"}
+
+
 def escalator(escalator_id: str) -> str:
     return f"ESC#{escalator_id}"
 

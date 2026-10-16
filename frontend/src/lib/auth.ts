@@ -117,6 +117,7 @@ export async function finishLogin(): Promise<void> {
   if (!response.ok)
     throw new Error("Il servizio di autenticazione ha rifiutato il login.");
   saveTokens(await response.json());
+  sessionStorage.removeItem("smt.favorites-checked");
 }
 let refreshing: Promise<string | null> | null = null;
 export async function accessToken(): Promise<string | null> {

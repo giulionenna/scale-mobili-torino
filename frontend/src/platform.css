@@ -3115,7 +3115,7 @@ html {
   text-align: left;
   cursor: pointer;
 }
-.availability-toggle:hover {
+.availability-toggle:hover:not(:disabled) {
   background: #ffffff05;
 }
 .availability-toggle:focus-visible {
@@ -3914,4 +3914,94 @@ html {
   .incident-footnote {
     font-size: 12px;
   }
+}
+
+.favorites-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  margin: 24px 0;
+}
+.favorites-panel p:not(.eyebrow) {
+  color: var(--muted);
+  max-width: 620px;
+  margin: 10px 0 0;
+}
+.favorites-panel h2 {
+  font-size: 21px;
+}
+.favorites-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.favorites-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+.favorites-dialog > p:not(.eyebrow) {
+  line-height: 1.6;
+  color: var(--muted);
+}
+.favorite-options {
+  display: grid;
+  gap: 10px;
+  margin: 24px 0;
+}
+.favorite-options label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.favorite-options input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+.favorite-checks {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.favorite-device {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.favorite-device h3 {
+  font-size: 17px;
+}
+.favorite-device > p:not(.eyebrow) {
+  font-size: 14px;
+  color: var(--muted);
+}
+.favorite-device label {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+.favorite-device input,
+.favorite-device select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+}
+.favorites-footer {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.favorites-footer small {
+  color: var(--muted);
 }

@@ -5,7 +5,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from scale_mobili.catalog import CatalogMixin
 from scale_mobili.domain import DomainError, percentage, public_event, timestamp
-from scale_mobili.keys import idempotency_key
+from scale_mobili.keys import favorite_stations_key, idempotency_key
 from scale_mobili.photos import sanitize_photo
 from scale_mobili.repository import record
 from scale_mobili.service import Service
@@ -52,7 +52,7 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
             raise DomainError("Stazione non trovata", 404)
         return value
 
-    def _write(self, actor, request_key, operation, body, factory):
+    def _write(self, actor, request_key, operation, body, factory, *, invalidate=True):
         self.require_scope(actor)
         if not request_key or not 8 <= len(request_key) <= 128:
             raise DomainError("Idempotency-Key richiede da 8 a 128 caratteri")
@@ -77,11 +77,44 @@ class PlatformService(CatalogMixin, SourcesMixin, Service):
                 expires_at=now + 86400,
             )
             try:
-                self.store.transact([*puts, (receipt, version)], events, checks, actor)
+                self.store.transact(
+                    [*puts, (receipt, version)], events, checks, actor, invalidate=invalidate
+                )
                 return result
             except ConcurrentWrite:
                 continue
         raise DomainError("Scrittura concorrente: ritenta con la stessa chiave", 409)
+
+    def favorite_stations(self, actor):
+        item = self.store.get_core(favorite_stations_key(actor.id)) or {}
+        return {"station_ids": item.get("station_ids", []), "version": int(item.get("version", 0))}
+
+    def save_favorite_stations(self, payload, actor, request_key):
+        def factory(event_id, when):
+            current = self.favorite_stations(actor)
+            if current["version"] != payload.version:
+                raise DomainError(
+                    "Preferiti modificati da un'altra sessione: ricarica e riprova", 409
+                )
+            ids = sorted(set(payload.station_ids))
+            stations = [self.station(identifier) for identifier in ids]
+            result = {"station_ids": ids, "version": payload.version + 1}
+            item = record(favorite_stations_key(actor.id), **result, updated_at=when)
+            return (
+                [(item, payload.version)],
+                [],
+                [(station, int(station.get("version", 1))) for station in stations],
+                result,
+            )
+
+        return self._write(
+            actor,
+            request_key,
+            "favorite_stations",
+            payload.model_dump(mode="json"),
+            factory,
+            invalidate=False,
+        )
 
     def _page(self, scope, actor, cursor, limit, loader):
         if not 1 <= limit <= 100:

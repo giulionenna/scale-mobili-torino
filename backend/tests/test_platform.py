@@ -427,3 +427,56 @@ def test_merge_preserves_originals_and_alias_correction(svc, actor, moderator):
     assert svc.status(duplicate)["community"]["status"] == "guasta"
     assert svc.private_statistics(actor)["total"] == 2
     assert len([r for r in svc.history("demo-esc-1")["items"] if r["kind"] == "report"]) == 2
+
+
+def test_favorite_stations_private_persistent_idempotent_and_no_observation(svc, actor, settings):
+    from scale_mobili.domain import FavoriteStationsInput
+
+    other = Actor(id="another-user", scopes=actor.scopes)
+    payload = FavoriteStationsInput(station_ids=["demo-station", "demo-station"], version=0)
+    before = svc.store.get_core(WORK)
+    result = svc.save_favorite_stations(payload, actor, "favorites-first")
+    assert result == {"station_ids": ["demo-station"], "version": 1}
+    assert svc.save_favorite_stations(payload, actor, "favorites-first") == result
+    restarted = PlatformService(svc.store, settings, MemoryBlobs())
+    assert restarted.favorite_stations(actor) == result
+    assert restarted.favorite_stations(other) == {"station_ids": [], "version": 0}
+    assert svc.store.get_core(WORK) == before
+    assert svc.status("demo-esc-1")["community"] is None
+    assert not svc.store.history("demo-esc-1", "9999", None, 10)[0]
+    with pytest.raises(DomainError, match="modificati"):
+        svc.save_favorite_stations(payload, actor, "favorites-stale")
+    with pytest.raises(DomainError, match="diverso"):
+        svc.save_favorite_stations(
+            FavoriteStationsInput(station_ids=[], version=1), actor, "favorites-first"
+        )
+    with pytest.raises(DomainError, match="Scope"):
+        svc.save_favorite_stations(payload, Actor(id="no-scope"), "favorites-denied")
+    with pytest.raises(DomainError, match="Stazione"):
+        svc.save_favorite_stations(
+            FavoriteStationsInput(station_ids=["missing"], version=1), actor, "favorites-missing"
+        )
+    assert svc.favorite_stations(actor) == result
+    assert svc.save_favorite_stations(
+        FavoriteStationsInput(station_ids=[], version=1), actor, "favorites-remove"
+    ) == {"station_ids": [], "version": 2}
+
+
+def test_favorites_concurrent_sessions_cannot_overwrite(svc, actor):
+    from scale_mobili.domain import FavoriteStationsInput
+
+    def save(index):
+        try:
+            return svc.save_favorite_stations(
+                FavoriteStationsInput(station_ids=["demo-station"] if index else [], version=0),
+                actor,
+                f"favorites-concurrent-{index}",
+            )
+        except DomainError as error:
+            assert error.status_code == 409
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(save, range(2)))
+    assert sum(value is not None for value in results) == 1
+    assert svc.favorite_stations(actor)["version"] == 1

@@ -91,6 +91,7 @@ def check_oauth(browser, web, base):
         page.get_by_role("button", name="Prova la modalità moderatore")
     ).to_have_count(0)
     page.get_by_role("button", name="Accedi al tuo account").click()
+    page.get_by_role("button", name="Salta e continua").click()
     expect(page.locator("#station")).to_be_visible()
     assert page.url == web + "/segnala/"
     assert grants == ["authorization_code"]
@@ -239,6 +240,13 @@ def main():
                 expect(page.locator(".availability-value")).to_have_text("0%")
                 assert not private_calls
                 page.get_by_role("button", name="Esplora la panoramica").click()
+                page.locator(".availability-toggle").hover()
+                assert (
+                    page.locator(".availability-toggle").evaluate(
+                        "e => getComputedStyle(e).backgroundColor"
+                    )
+                    == "rgba(255, 255, 255, 0.02)"
+                )
                 expect(page.locator(".locked-statistic")).to_have_count(3)
                 expect(page.locator(".station-card")).to_have_count(4)
                 expect(page.locator(".device-row")).to_have_count(9)
@@ -247,6 +255,19 @@ def main():
                 ).click()
                 expect(page.get_by_role("dialog")).to_be_visible()
                 page.get_by_role("button", name="Continua come cittadino").click()
+                expect(
+                    page.get_by_role("heading", name="Quali stazioni usi di più?")
+                ).to_be_visible()
+                page.locator(".favorite-options input").first.check()
+                page.get_by_role("button", name="Salva preferiti", exact=True).click()
+                expect(
+                    page.get_by_role(
+                        "heading", name="Funzionano gli impianti delle tue stazioni?"
+                    )
+                ).to_be_visible()
+                page.get_by_role("button", name="Salta e continua").click()
+                page.reload(wait_until="networkidle")
+                expect(page.get_by_role("dialog")).to_have_count(0)
                 expect(page.locator("#station")).to_be_visible()
                 page.locator("#station").select_option("demo-station")
                 page.locator("#device").select_option("demo-esc-1")
@@ -335,6 +356,7 @@ def main():
                 expect(page.locator(".alignment-number")).to_have_count(0)
                 page.get_by_role("button", name="Accedi", exact=True).click()
                 page.get_by_role("button", name="Prova la modalità moderatore").click()
+                page.get_by_role("button", name="Salta e continua").click()
                 expect(page.get_by_role("dialog")).to_have_count(0)
                 page.get_by_role("button", name="Moderazione").click()
                 expect(page.locator(".moderation-card")).to_have_count(1)
@@ -384,6 +406,34 @@ def main():
                 expect(guest.locator(".feed-photo")).to_have_count(1)
                 expect(guest.locator(".locked-statistic")).to_have_count(3)
                 assert not errors, errors
+                favorites_context = browser.new_context(
+                    viewport={"width": 390, "height": 844}
+                )
+                favorites_page = favorites_context.new_page()
+                favorites_page.goto(web + "/home/", wait_until="networkidle")
+                favorites_page.evaluate(
+                    "sessionStorage.setItem('smt.development-token', 'demo-user-1')"
+                )
+                favorites_page.reload(wait_until="networkidle")
+                expect(
+                    favorites_page.get_by_role(
+                        "heading", name="Funzionano gli impianti delle tue stazioni?"
+                    )
+                ).to_be_visible()
+                assert favorites_page.locator(".favorite-device").count() >= 2
+                check = favorites_page.locator(".favorite-device").first
+                check.locator("select").select_option("non_verificabile")
+                check.get_by_role("button", name="Invia osservazione").click()
+                expect(check.get_by_role("status")).to_contain_text(
+                    "Segnalazione salvata"
+                )
+                assert favorites_page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth"
+                )
+                favorites_page.get_by_role("button", name="Fatto, continua").click()
+                favorites_page.reload(wait_until="networkidle")
+                expect(favorites_page.get_by_role("dialog")).to_have_count(0)
+                favorites_context.close()
                 check_oauth(browser, web, base)
                 browser.close()
             print(

@@ -123,3 +123,27 @@ hanno quindi prefisso `<api_url>/mcp/`: il frontend li legge da `/api/config`,
 la discovery MCP pubblica gli stessi valori e il backend riconosce soltanto
 quelli della propria risorsa. Managed login rifiuta scope appartenenti a un
 altro identificatore quando viene richiesto il binding `resource`.
+
+## Preferiti e verifica all’accesso
+
+Nella panoramica, «Le tue stazioni preferite» permette di scegliere e modificare
+le stazioni. Nel sito AWS la lista privata è salvata in DynamoDB per account e
+ritrovata su altri dispositivi. Il login sviluppo usa lo stesso backend; soltanto
+la vecchia modalità browser-demo conserva la lista nella sessione locale.
+
+Dopo ogni login viene aperta prima la verifica degli impianti dei preferiti, oppure
+la scelta iniziale se la lista è vuota. Una nuova sessione browser autenticata la
+propone di nuovo; navigazione, ricaricamento e rinnovo del token nella stessa
+sessione non la ripetono dopo «Salta e continua» o «Fatto, continua».
+
+La scelta dei preferiti e il salto non inviano segnalazioni. Per ogni impianto
+si selezionano esplicitamente stato e momento osservato (ora locale del browser),
+poi «Invia osservazione». Il backend conserva l’istante UTC e applica gli stessi
+controlli e la stessa idempotenza del modulo ordinario. «Non l’ho osservato» non
+è uno stato e non viene inviato. Sono disponibili tutti i quattro stati; nessuno
+è preselezionato. I contributi del censimento dimostrativo restano sintetici.
+
+Verifiche: isolamento tra account, persistenza tra istanze del servizio,
+concorrenza e retry in memoria/DynamoDB emulato; Chromium con API ed emulatori
+prova scelta, verifica all’accesso, salto senza scritture, invio esplicito,
+ricaricamento, mobile e colore della scheda disponibilità al passaggio del mouse.

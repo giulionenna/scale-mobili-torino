@@ -6,6 +6,7 @@ from scale_mobili.auth import authenticate, oauth_scopes
 from scale_mobili.domain import (
     CorrectionInput,
     DeviceReportInput,
+    FavoriteStationsInput,
     InterpretationInput,
     MergeDeviceInput,
     PhotoUploadInput,
@@ -36,6 +37,18 @@ def register_routes(app, service, settings):
     @app.get("/api/me")
     def me(actor=actor_dependency):
         return {"id": actor.id, "moderator": actor.moderator, "scopes": sorted(actor.scopes)}
+
+    @app.get("/api/me/favorite-stations")
+    def favorite_stations(actor=actor_dependency):
+        return service.favorite_stations(actor)
+
+    @app.put("/api/me/favorite-stations")
+    def save_favorite_stations(
+        body: FavoriteStationsInput,
+        actor=actor_dependency,
+        idempotency_key: str | None = Header(None),
+    ):
+        return service.save_favorite_stations(body, actor, idempotency_key)
 
     @app.get("/api/stations/{station_id}/devices")
     def devices(station_id: str):

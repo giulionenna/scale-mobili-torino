@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import Icon from "./Icon.svelte";
+  import Favorites from "./Favorites.svelte";
   import AvailabilityCard from "./AvailabilityCard.svelte";
   import PrivatePhoto from "./PrivatePhoto.svelte";
   import { ApiError } from "./api";
@@ -730,6 +731,12 @@
               : "Censimento e osservazioni della community"}
       </p>
     </div>
+    {#key user?.id}<Favorites
+        {data}
+        {user}
+        onlogin={() => requestLogin("home")}
+        onsaved={refreshAfterSave}
+      />{/key}
     {#if notice}<div class="toast success" role="status">
         <Icon name="check" size={18} /><span>{notice}</span><button
           class="icon-button"

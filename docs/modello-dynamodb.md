@@ -169,3 +169,16 @@ per autore rileggono il record corrente prima di autorizzare o restituire dati.
 
 Le verifiche usano memoria, Moto e servizi HTTP emulati. Coerenza, capacità e
 throttling di DynamoDB reale restano da verificare dopo il deploy autorizzato.
+
+## Stazioni preferite per account
+
+Accesso: leggere o sostituire al massimo 50 ID di stazioni dell’utente autenticato.
+Un solo documento privato in `core`: `PK=USER#<sub Cognito>`,
+`SK=FAVORITE_STATIONS`, `schema_version=1`, lista `station_ids`, `version`, `updated_at`.
+GetItem coerente; nessuna Scan, nuovo indice, tabella o servizio. Nessun ID utente
+accettato dal client. GET/PUT `/api/me/favorite-stations` richiedono autenticazione;
+PUT richiede scope di scrittura e Idempotency-Key. Transazione con versione attesa,
+controllo delle stazioni esistenti, ricevuta di idempotenza e limite antiabuso.
+Due sessioni concorrenti ricevono un conflitto, evitando sovrascritture silenziose.
+Le preferenze non producono osservazioni, feed, audit pubblico o invalidazioni
+statistiche. Il record privato va incluso nell’eventuale cancellazione dei dati dell’account.

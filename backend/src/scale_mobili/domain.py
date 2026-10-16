@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -55,6 +55,12 @@ class Actor(BaseModel):
 
 class DeviceReportInput(ReportInput):
     station_id: str = Field(min_length=1, max_length=100)
+
+
+class FavoriteStationsInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    station_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(max_length=50)
+    version: int = Field(ge=0)
 
 
 class ProposalInput(BaseModel):
