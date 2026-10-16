@@ -247,7 +247,7 @@ def build(evidence_root):
     csv_path.parent.mkdir(exist_ok=True)
     names = {s["station_id"]: s["name"] for s in stations}
     with csv_path.open("w", newline="") as stream:
-        writer = csv.writer(stream)
+        writer = csv.writer(stream, lineterminator="\n")
         writer.writerow(
             [
                 "stazione",
