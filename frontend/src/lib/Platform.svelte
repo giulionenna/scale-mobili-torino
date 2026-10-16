@@ -1365,6 +1365,13 @@
                 >
               </div>
             </div>{/if}
+          <p class="privacy-form-note">
+            Inviando chiedi la pubblicazione del contributo; le foto
+            compariranno solo dopo revisione. Evita volti, targhe e dati
+            personali. <a href="/privacy/" target="_blank" rel="noreferrer"
+              >Privacy e trattamento dei dati</a
+            >.
+          </p>
           <div class="form-submit">
             <span
               ><Icon name="shield" size={16} />{view === "report"
@@ -1596,6 +1603,7 @@
       ><Icon name="stairs" size={20} />Scale Mobili Torino</span
     >
     <p>Un progetto civico indipendente, non affiliato a GTT.</p>
+    <a href="/privacy/">Privacy e cookie</a>
   </div>
   <div>
     <span>Scale mobili. Ascensori. Persone.</span><small
@@ -1633,6 +1641,13 @@
       <p>
         Accedi per vedere tutte le statistiche, segnalare un problema o proporre
         un impianto.
+      </p>
+      <p class="privacy-form-note">
+        Prima di registrarti, leggi come trattiamo i dati nella <a
+          href="/privacy/"
+          target="_blank"
+          rel="noreferrer">informativa privacy</a
+        >.
       </p>
       {#if error}<p role="alert">{error}</p>{/if}
       {#if developmentLogin()}
