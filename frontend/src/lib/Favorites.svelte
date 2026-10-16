@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Data, Member, DeviceStatus } from "./platform-model";
+  import type { Data, Member, DeviceStatus, Photo } from "./platform-model";
   import { labels } from "./platform-model";
-  import { getFavorites, saveFavorites, submitReport } from "./platform-client";
+  import {
+    getFavorites,
+    saveFavorites,
+    submitReport,
+    preparePhoto,
+  } from "./platform-client";
   import type { Favorites } from "./platform-client";
   let {
     data,
@@ -22,10 +27,23 @@
     loaded = $state(false),
     busy = $state(false);
   let error = $state("");
+  let savedChanges = false;
   let answers = $state<Record<string, DeviceStatus | "">>({});
   let sent = $state<string[]>([]);
   let times = $state<Record<string, string>>({});
-  const attempts: Record<string, { body: string; key: string }> = {};
+  let expanded = $state<Record<string, boolean>>({});
+  let descriptions = $state<Record<string, string>>({});
+  let photos = $state<Record<string, Photo | undefined>>({});
+  const photoRevisions: Record<string, number> = {};
+  let preferenceAttempt: { body: string; key: string } | undefined;
+  const attempts: Record<
+    string,
+    {
+      signature: string;
+      key: string;
+      input: Parameters<typeof submitReport>[0];
+    }
+  > = {};
   const sessionKey = "smt.favorites-checked";
   const stations = $derived(data.stationCatalog || []);
   const devices = $derived(
@@ -36,10 +54,19 @@
       .filter((s) => favorites.station_ids.includes(s.id))
       .map((s) => s.name),
   );
-  function dismiss() {
+  async function dismiss() {
     if (busy) return;
     open = false;
     if (user) sessionStorage.setItem(sessionKey, user.id);
+    if (savedChanges) {
+      savedChanges = false;
+      busy = true;
+      try {
+        await onsaved();
+      } finally {
+        busy = false;
+      }
+    }
   }
   function show(edit = false) {
     if (!user) {
@@ -50,6 +77,10 @@
     answers = {};
     times = {};
     sent = [];
+    expanded = {};
+    descriptions = {};
+    photos = {};
+    for (const id of Object.keys(attempts)) delete attempts[id];
     selected = [...favorites.station_ids];
     editing = edit || !favorites.station_ids.length;
     open = true;
@@ -81,13 +112,13 @@
       station_ids: selected,
       version: favorites.version,
     });
-    if (attempts.preferences?.body !== body)
-      attempts.preferences = { body, key: crypto.randomUUID() };
+    if (preferenceAttempt?.body !== body)
+      preferenceAttempt = { body, key: crypto.randomUUID() };
     try {
       favorites = await saveFavorites(
         selected,
         favorites.version,
-        attempts.preferences.key,
+        preferenceAttempt.key,
       );
       loaded = true;
       editing = false;
@@ -113,26 +144,61 @@
       .toISOString()
       .slice(0, 16);
   }
-  async function report(id: string) {
+  async function pickPhoto(id: string, event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || busy) return;
+    error = "";
+    busy = true;
+    photos[id] = undefined;
+    photoRevisions[id] = (photoRevisions[id] || 0) + 1;
+    try {
+      photos[id] = await preparePhoto(file);
+    } catch (e) {
+      error = e instanceof Error ? e.message : "Foto non disponibile.";
+      input.value = "";
+    } finally {
+      busy = false;
+    }
+  }
+  async function report(id: string, quickStatus?: DeviceStatus) {
     const device = devices.find((d) => d.id === id);
-    const status = answers[id];
-    if (!device || !status || !times[id]) return;
+    if (!device || busy || sent.includes(id)) return;
+    const status = quickStatus || answers[id];
+    if (!status || (!quickStatus && !times[id])) return;
     busy = true;
     error = "";
-    const input = {
-      device_id: id,
-      station_id: device.station_id,
-      status,
-      description: "",
-      observed_at: new Date(times[id]).toISOString(),
-    };
-    const body = JSON.stringify(input);
-    if (attempts[id]?.body !== body)
-      attempts[id] = { body, key: crypto.randomUUID() };
     try {
-      await submitReport(input, attempts[id].key);
+      const signature = JSON.stringify(
+        quickStatus
+          ? { mode: "quick", status }
+          : {
+              mode: "details",
+              status,
+              time: times[id],
+              description: descriptions[id] || "",
+              photo: photoRevisions[id] || 0,
+            },
+      );
+      // Freeze the first click's time and payload: retrying a lost response keeps the same observation.
+      if (attempts[id]?.signature !== signature)
+        attempts[id] = {
+          signature,
+          key: crypto.randomUUID(),
+          input: {
+            device_id: id,
+            station_id: device.station_id,
+            status,
+            description: quickStatus ? "" : descriptions[id] || "",
+            observed_at: quickStatus
+              ? new Date().toISOString()
+              : new Date(times[id]).toISOString(),
+            photo: quickStatus ? undefined : photos[id],
+          },
+        };
+      await submitReport(attempts[id].input, attempts[id].key);
       sent = [...sent, id];
-      await onsaved();
+      savedChanges = true;
     } catch (e) {
       error =
         e instanceof Error ? e.message : "Invio non riuscito. Puoi riprovare.";
@@ -150,7 +216,7 @@
       if (e.key !== "Tab") return;
       const items = [
         ...node.querySelectorAll<HTMLElement>(
-          "button:not(:disabled), input:not(:disabled), select:not(:disabled)",
+          "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)",
         ),
       ];
       if (!items.length) {
@@ -246,9 +312,9 @@
         >
       {:else}
         <p>
-          Segnala solo ciò che hai osservato. Scegli uno stato e il momento per
-          ciascun impianto, poi conferma l’invio. Puoi saltare quelli che non
-          hai visto.
+          Li hai appena visti? Rispondi con un clic. Usa Altro per manutenzione,
+          altri stati o dettagli. Puoi saltare gli impianti che non hai
+          osservato.
         </p>
         <div class="favorite-checks">
           {#each devices as device}
@@ -262,34 +328,94 @@
                   ✓ Segnalazione salvata
                 </p>
               {:else}
-                <label
-                  >Stato osservato<select
-                    aria-label={`Stato di ${device.name}`}
-                    value={answers[device.id] || ""}
+                <div class="favorite-quick-actions">
+                  <button
+                    class="button quick-working"
                     disabled={busy}
-                    onchange={(e) => {
-                      answers[device.id] = e.currentTarget
-                        .value as DeviceStatus;
-                      times[device.id] ||= localNow();
-                    }}
-                    ><option value="">Non l’ho osservato</option
-                    >{#each Object.entries(labels) as [value, label]}<option
-                        {value}>{label}</option
-                      >{/each}</select
-                  ></label
-                >
-                {#if answers[device.id]}<label
-                    >Quando l’hai osservato?<input
-                      type="datetime-local"
-                      bind:value={times[device.id]}
-                      disabled={busy}
-                    /></label
+                    onclick={() => report(device.id, "funzionante")}
+                    >Funziona</button
                   >
                   <button
-                    class="button navy"
-                    disabled={busy || !times[device.id]}
-                    onclick={() => report(device.id)}>Invia osservazione</button
-                  >{/if}
+                    class="button quick-broken"
+                    disabled={busy}
+                    onclick={() => report(device.id, "guasta")}
+                    >Non funziona</button
+                  >
+                  <button
+                    class="text-button favorite-more"
+                    disabled={busy}
+                    aria-expanded={!!expanded[device.id]}
+                    aria-controls={`favorite-details-${device.id}`}
+                    onclick={() => {
+                      expanded[device.id] = !expanded[device.id];
+                      if (expanded[device.id]) times[device.id] ||= localNow();
+                    }}
+                    >{expanded[device.id] ? "Chiudi dettagli" : "Altro"}</button
+                  >
+                </div>
+                {#if expanded[device.id]}
+                  <div
+                    class="favorite-details"
+                    id={`favorite-details-${device.id}`}
+                  >
+                    <label
+                      >Stato osservato<select
+                        aria-label={`Stato di ${device.name}`}
+                        bind:value={answers[device.id]}
+                        disabled={busy}
+                      >
+                        <option value="">Scegli uno stato</option>
+                        {#each Object.entries(labels) as [value, label]}<option
+                            {value}>{label}</option
+                          >{/each}
+                      </select></label
+                    >
+                    <label
+                      >Quando l’hai osservato?<input
+                        type="datetime-local"
+                        bind:value={times[device.id]}
+                        disabled={busy}
+                      /></label
+                    >
+                    <label
+                      >Descrizione (facoltativa)<textarea
+                        bind:value={descriptions[device.id]}
+                        maxlength="1000"
+                        rows="3"
+                        disabled={busy}></textarea></label
+                    >
+                    <label
+                      >Fotografia (facoltativa)<input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        disabled={busy}
+                        onchange={(event) => pickPhoto(device.id, event)}
+                      /></label
+                    >
+                    {#if photos[device.id]}<div class="favorite-photo-preview">
+                        <img
+                          src={photos[device.id]!.data}
+                          alt="Anteprima della foto da allegare"
+                        /><button
+                          class="text-button"
+                          disabled={busy}
+                          onclick={() => {
+                            photos[device.id] = undefined;
+                            photoRevisions[device.id] =
+                              (photoRevisions[device.id] || 0) + 1;
+                          }}>Rimuovi foto</button
+                        >
+                      </div>{/if}
+                    <button
+                      class="button navy"
+                      disabled={busy ||
+                        !answers[device.id] ||
+                        !times[device.id]}
+                      onclick={() => report(device.id)}
+                      >Invia osservazione</button
+                    >
+                  </div>
+                {/if}
               {/if}
             </article>
           {/each}
@@ -310,7 +436,10 @@
       <div class="favorites-footer">
         <button class="button outline" disabled={busy} onclick={dismiss}
           >{sent.length ? "Fatto, continua" : "Salta e continua"}</button
-        ><small>Nessun invio automatico. I preferiti restano salvati.</small>
+        ><small
+          >Funziona e Non funziona inviano subito la risposta. I preferiti
+          restano salvati.</small
+        >
       </div>
     </div>
   </div>

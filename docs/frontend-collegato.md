@@ -136,12 +136,19 @@ la scelta iniziale se la lista è vuota. Una nuova sessione browser autenticata 
 propone di nuovo; navigazione, ricaricamento e rinnovo del token nella stessa
 sessione non la ripetono dopo «Salta e continua» o «Fatto, continua».
 
-La scelta dei preferiti e il salto non inviano segnalazioni. Per ogni impianto
-si selezionano esplicitamente stato e momento osservato (ora locale del browser),
-poi «Invia osservazione». Il backend conserva l’istante UTC e applica gli stessi
-controlli e la stessa idempotenza del modulo ordinario. «Non l’ho osservato» non
-è uno stato e non viene inviato. Sono disponibili tutti i quattro stati; nessuno
-è preselezionato. I contributi del censimento dimostrativo restano sintetici.
+La scelta dei preferiti e il salto non inviano segnalazioni. Per ogni impianto,
+«Funziona» e «Non funziona» inviano subito un’osservazione, rispettivamente
+`funzionante` e `guasta`, con il momento del primo clic. Nessun campo o timestamp
+compare nella verifica rapida. Il momento e la chiave restano identici nei
+ritentativi dopo una risposta persa, evitando duplicati.
+
+«Altro» espande soltanto l’impianto scelto: tutti e quattro gli stati, momento
+osservato, descrizione e foto facoltative. L’apertura non invia nulla; si conferma
+con «Invia osservazione». Foto e contributi usano gli stessi controlli del modulo
+ordinario. La panoramica si aggiorna una volta alla chiusura dopo gli invii,
+per consentire risposte rapide senza ricaricare tutti i dati a ogni clic.
+Il backend conserva osservazione e registrazione separatamente in UTC;
+i contributi sul censimento dimostrativo restano sintetici.
 
 Verifiche: isolamento tra account, persistenza tra istanze del servizio,
 concorrenza e retry in memoria/DynamoDB emulato; Chromium con API ed emulatori
