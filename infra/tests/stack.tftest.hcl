@@ -35,6 +35,10 @@ variables {
 run "protected_backend" {
   command = apply
   assert {
+    condition     = !aws_cognito_user_pool.users.admin_create_user_config[0].allow_admin_create_user_only && aws_cognito_user_pool.users.auto_verified_attributes == toset(["email"]) && aws_cognito_user_pool.users.user_attribute_update_settings[0].attributes_require_verification_before_update == toset(["email"]) && aws_cognito_user_group.administrators.name == "administrators"
+    error_message = "Registrazione autonoma con email verificata; assegnazione amministratore separata."
+  }
+  assert {
     condition     = length(aws_lambda_function.backend) == 3
     error_message = "Servono API, aggregatore e collector."
   }

@@ -43,7 +43,7 @@ resource discovery pubblica gli stessi valori e il backend riconosce soltanto
 quelli della propria risorsa. I token MCP senza audience esatta restano rifiutati.
 
 Il callback applicativo è `/auth/cognito`. `/callback` resta riservato a Sites
-per l'accesso ChatGPT. Il pool non permette autoregistrazione e il client web
+per l'accesso ChatGPT. Nella prima prova il pool non permetteva autoregistrazione. Dal 16 ottobre la registrazione richiede conferma email e il ruolo `administrators` viene assegnato separatamente; [procedura di accesso](frontend-collegato.md#registrazione-e-amministrazione). Il client web
 è pubblico, senza client secret, con authorization code e PKCE.
 
 Il provider AWS richiede anche `ListUserPoolClients` durante il refresh del

@@ -47,7 +47,10 @@ export function returnDestination() {
   return value && destinations.has(value) ? value : "/home/";
 }
 
-export async function login(destination = "/home/"): Promise<void> {
+export async function login(
+  destination = "/home/",
+  createAccount = false,
+): Promise<void> {
   const { domain, client, resource, scopes } = await settings();
   if (!domain || !client)
     throw new Error("Il login non è ancora configurato in questo ambiente.");
@@ -72,7 +75,9 @@ export async function login(destination = "/home/"): Promise<void> {
     state,
     resource,
   });
-  window.location.assign(`${domain}/oauth2/authorize?${params}`);
+  window.location.assign(
+    `${domain}/${createAccount ? "signup" : "oauth2/authorize"}?${params}`,
+  );
 }
 
 type Tokens = {

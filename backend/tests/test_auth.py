@@ -107,3 +107,23 @@ def test_scopes_from_another_resource_do_not_grant_access(jwt_environment):
     )
     actor = authenticate("Bearer " + jwt.encode(claims, key, algorithm="RS256"), settings)
     assert actor.scopes == frozenset({"stats:read"})
+
+
+@pytest.mark.parametrize("group", ["moderators", "administrators"])
+def test_signed_groups_grant_review_but_admin_is_distinct(jwt_environment, group):
+    settings, key, claims = jwt_environment
+    claims["cognito:groups"] = [group]
+    actor = authenticate("Bearer " + jwt.encode(claims, key, algorithm="RS256"), settings)
+    assert actor.moderator
+    assert actor.administrator == (group == "administrators")
+    from scale_mobili.platform import PlatformService
+
+    PlatformService.require_scope(actor)
+
+
+@pytest.mark.parametrize("groups", ["administrators", "not-moderators", [1]])
+def test_group_claim_must_be_a_list_of_group_names(jwt_environment, groups):
+    settings, key, claims = jwt_environment
+    claims["cognito:groups"] = groups
+    with pytest.raises(DomainError, match="Token non valido"):
+        authenticate("Bearer " + jwt.encode(claims, key, algorithm="RS256"), settings)

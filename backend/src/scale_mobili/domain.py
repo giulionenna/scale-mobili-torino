@@ -50,6 +50,7 @@ class CorrectionInput(BaseModel):
 class Actor(BaseModel):
     id: str
     moderator: bool = False
+    administrator: bool = False
     scopes: frozenset[str] = frozenset()
 
 

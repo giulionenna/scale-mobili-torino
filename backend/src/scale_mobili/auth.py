@@ -57,9 +57,13 @@ def authenticate(header, settings, *, require_resource=False) -> Actor:
         scopes = frozenset(
             s.removeprefix(prefix) for s in claims.get("scope", "").split() if s.startswith(prefix)
         )
+        groups = claims.get("cognito:groups", [])
+        if not isinstance(groups, list) or any(not isinstance(group, str) for group in groups):
+            raise ValueError("Gruppi del token non validi")
         return Actor(
             id=claims["sub"],
-            moderator="moderators" in claims.get("cognito:groups", []),
+            moderator="moderators" in groups or "administrators" in groups,
+            administrator="administrators" in groups,
             scopes=scopes,
         )
     except (jwt.PyJWTError, ValueError, KeyError, TypeError) as exc:

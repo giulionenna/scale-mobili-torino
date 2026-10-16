@@ -236,11 +236,11 @@
       photo = undefined;
     }
   }
-  async function enter(role: "citizen" | "moderator") {
+  async function enter(role: "citizen" | "moderator", createAccount = false) {
     busy = true;
     error = "";
     try {
-      const identity = await signIn(role, paths[desiredView]);
+      const identity = await signIn(role, paths[desiredView], createAccount);
       if (!identity) return; // Cognito redirects to its authorization endpoint.
       user = identity;
       data = await load();
@@ -554,8 +554,11 @@
         >{#if user?.role === "moderator"}<button
             class:active={view === "moderation"}
             onclick={() => go("moderation")}
-            ><Icon name="shield" size={17} />Moderazione {#if pending.length + photoQueue.length}<span
-                class="nav-count">{pending.length + photoQueue.length}</span
+            ><Icon name="shield" size={17} />{user.administrator
+              ? "Amministrazione"
+              : "Moderazione"}
+            {#if pending.length + photoQueue.length}<span class="nav-count"
+                >{pending.length + photoQueue.length}</span
               >{/if}</button
           >{/if}
       </nav>
@@ -1393,7 +1396,9 @@
     {:else if view === "moderation" && user?.role === "moderator"}
       <section class="dashboard-heading">
         <div>
-          <p class="eyebrow">AREA MODERATORE</p>
+          <p class="eyebrow">
+            {user.administrator ? "AREA AMMINISTRATORE" : "AREA MODERATORE"}
+          </p>
           <h1>Un censimento <span>di cui fidarsi.</span></h1>
           <p>Verifica le proposte e le fotografie prima della pubblicazione.</p>
         </div>
@@ -1640,8 +1645,15 @@
           onclick={() => enter("citizen")}
           disabled={busy}
           >Accedi al tuo account<Icon name="arrow" size={18} /></button
+        ><button
+          class="button outline full"
+          onclick={() => enter("citizen", true)}
+          disabled={busy}>Crea un account</button
         ><small class="login-footnote"
-          >L’accesso avviene attraverso il servizio di autenticazione.</small
+          >Registrati con la tua email e confermala con il codice ricevuto. Se
+          sei amministratore, usa lo stesso accesso: troverai l’area
+          Amministrazione dopo il login. Per recuperare la password, seleziona
+          «Forgot your password?» nella pagina di accesso.</small
         >{/if}
     </div>
   </div>{/if}

@@ -30,7 +30,7 @@ SMT_MODE=demo uv run --project backend uvicorn scale_mobili.app:app --host 127.0
 Contratto interattivo su `/docs`; backend in memoria per la prova immediata.
 Il frontend della repository è ora collegato alle API: home pubblica, login,
 segnalazioni con foto, proposte e moderazione. Il sito Sites pubblicato usa queste API in modalità AWS, senza login di sviluppo
-o archiviazione demo nel browser; mantiene l'accesso privato esistente.
+o archiviazione demo nel browser; mantiene l'accesso privato esistente. La registrazione applicativa richiede la verifica dell’email; [accesso e amministrazione](docs/frontend-collegato.md#registrazione-e-amministrazione).
 
 Collaudo completo nel cloud, con Chromium disponibile nell’ambiente:
 
